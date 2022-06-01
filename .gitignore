@@ -1,3 +1,10 @@
+### Project specific gitignore
+datasets/
+results/
+saved_models/
+visualizations/
+other/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
