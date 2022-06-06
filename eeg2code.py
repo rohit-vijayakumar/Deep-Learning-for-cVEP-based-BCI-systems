@@ -367,19 +367,37 @@ def run_eeg2code(dataset,mode,model):
                 yt_test = data['yt_test']
                 yt_test = np.argmax(yt_test,axis=1)
 
-                X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
-
-                X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
-                Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
-
-                X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
-                X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
-                Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
-
                 X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
 
-                model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched, X_val_epoched, Ys_val_epoched,n_subjects, n_classes, i, fold)
-                results[i+1][fold+1]['history'] = model_history
+                if(mode == 'within_subject'):
+                    X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
+
+                    X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
+                    Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
+
+                    X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
+                    X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
+                    Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
+
+                    model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched, X_val_epoched, Ys_val_epoched,n_subjects, n_classes, i, fold)
+                    results[i+1][fold+1]['history'] = model_history
+            
+
+                else:
+                    X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
+                    if(fold==0):
+                         X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
+
+                        X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
+                        Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
+
+                        X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
+                        X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
+                        Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
+
+                        model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched, X_val_epoched, Ys_val_epoched,n_subjects, n_classes, i, fold)
+                        results[i+1]['history'] = model_history
+
                 results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test_epoched,Ys_test_epoched, yt_test, n_subjects,n_classes,codebook)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
@@ -387,6 +405,7 @@ def run_eeg2code(dataset,mode,model):
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
+
                 # if(mode!='cross_subject'):
                 #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 #     results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']

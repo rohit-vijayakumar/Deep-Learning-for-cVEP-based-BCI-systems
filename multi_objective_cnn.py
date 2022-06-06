@@ -36,21 +36,16 @@ def build_multi_objective_cnn_model(n_channels,n_classes):
     x = Reshape((504,n_channels,1))(inputs)
     x = Masking(mask_value=0.)(x)
 
-    x = Conv2D(filters=8, kernel_size=(64,1), strides=(1,1), padding='same')(x)
-    x = BatchNormalization()(x)
-    x = Dropout(0.25)(x)
-
-    x = Conv2D(filters=8, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
+    x = Conv2D(filters=16, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
     x = BatchNormalization()(x)
     x = Dropout(0.25)(x)
     
-    
-    x = Conv2D(filters=8, kernel_size=(32,1), strides=(2,1), padding='same')(x)
+    x = Conv2D(filters=8, kernel_size=(48,1), strides=(2,1), padding='same')(x)
     x = BatchNormalization()(x)
     x = Activation(activation_fn)(x)               
     x = Dropout(0.25)(x)
     
-    x = Conv2D(filters=4, kernel_size=(8,1), strides=(2,1), padding='same')(x)
+    x = Conv2D(filters=4, kernel_size=(12,1), strides=(2,1), padding='same')(x)
     x = BatchNormalization()(x)
     x = Activation(activation_fn)(x)              
     x = Dropout(0.25)(x)
@@ -387,8 +382,14 @@ def run_multi_objective_cnn(dataset,mode,model):
                     yt_val = to_categorical(yt_val)
                     yt_test = to_categorical(yt_test)
 
-                model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
-                results[i+1][fold+1]['history'] = model_history
+                if(mode == 'within_subject'):
+                    model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
+                    results[i+1][fold+1]['history'] = model_history
+
+                else:
+                    if(fold==0):
+                        model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
+                        results[i+1]['history'] = model_history
 
                 results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 

@@ -334,7 +334,12 @@ def run_cca(dataset,mode,model):
 
                 _,n_samples,n_channels = X_train.shape
 
-                T, weights = train_cca(dataset,mode,model, X_train, yt_train,n_subjects, n_classes)
+                if(mode == 'within_subject'):
+                    T, weights = train_cca(dataset,mode,model, X_train, yt_train,n_subjects, n_classes)
+
+                else:
+                    if(fold==0):
+                        T, weights = train_cca(dataset,mode,model, X_train, yt_train,n_subjects, n_classes)
                 
                 results_eval = evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weights)
 

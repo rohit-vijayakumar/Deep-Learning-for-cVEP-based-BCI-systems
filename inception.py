@@ -344,14 +344,21 @@ def run_inception(dataset,mode,model):
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
 
-                yt_train = to_categorical(yt_train)
-                yt_val = to_categorical(yt_val)
-                yt_test = to_categorical(yt_test)
+                if (len(yt_train.shape)!=2):
+                    yt_train = to_categorical(yt_train)
+                    yt_val = to_categorical(yt_val)
+                    yt_test = to_categorical(yt_test)
 
-                model_multi_objective_cnn, model_history = train_inception(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
-                results[i+1][fold+1]['history'] = model_history
+                if(mode == 'within_subject'):
+                    model_inception, model_history = train_inception(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
+                    results[i+1][fold+1]['history'] = model_history
 
-                results_eval = evaluate_inception(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
+                else:
+                    if(fold==0):
+                        model_inception, model_history = train_inception(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
+                        results[i+1]['history'] = model_history
+
+                results_eval = evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
