@@ -430,7 +430,7 @@ def load_preprocessed_data_cv(dataset, mode):
         sfreq = 240
         X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
         
-        X, accepted_chans = remove_bad_channels(X)
+        X, rejected_chans = remove_bad_channels(X)
         n_subjects = 5
         
         if (mode=='within_subject'):

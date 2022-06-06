@@ -138,7 +138,7 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     pred_seq_arr = []
     for trial in range (X_test.shape[0]):
         _, seq_acc = model_eeg2code.evaluate(X_test[trial][..., np.newaxis], ys_test[trial], verbose=0)
-        pred_seq_arr.append(seq_acc*100)
+        pred_seq_arr.append(seq_acc)
         pred_seq = model_eeg2code.predict(X_test[trial][..., np.newaxis])[:,0]
         target_seq = ys_test[trial,:]
         corr_arr = []
@@ -149,13 +149,13 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
         pred_class = np.argmax(corr_arr)
         pred_class_arr.append(pred_class)
     
-    category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
+    category_acc = (np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
     sequence_acc = np.mean(pred_seq_arr)
 
     results['sequence_accuracy'] = np.array(sequence_acc)
     results['category_accuracy'] = np.array(category_acc)
 
-    accuracy = category_acc/100
+    accuracy = category_acc
     num_trials = X_test.shape[0]
     time_min = (X_test.shape[0]* 504*(2.1/504)*(1/60))
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)

@@ -104,7 +104,7 @@ def remove_bad_channels(X):
 
     accepted_chans = accepted_chans.astype('int')
     
-    return X, accepted_chans
+    return X, rejected_chans
 
 def augment_data_chan(X, Ys, Yt):
     mu, sigma = 0, 1

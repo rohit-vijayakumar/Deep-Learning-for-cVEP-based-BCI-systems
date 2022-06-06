@@ -235,10 +235,10 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
             _, pred = model_multi_objective_cnn.predict(X_test_new)
             prediction = np.argmax(pred,axis=1)
 
-            acc = 100*(np.sum(prediction == np.argmax(yt_test,axis=1))/len(prediction))
+            acc = (np.sum(prediction == np.argmax(yt_test,axis=1))/len(prediction))
             acc_time_step.append(acc)
             
-            accuracy = acc/100
+            accuracy = acc
             num_trials = X_test_new.shape[0]
             time_min = (X_test_new.shape[0]* k*(2.1/504)*(1/60))
             itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
@@ -306,11 +306,11 @@ def run_multi_objective_cnn(dataset,mode,model):
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
-            X, accepted_chans = remove_bad_channels(X)
+            X, rejected_chans = remove_bad_channels(X)
             X, Ys, Yt = augment_data_trial(X, Ys, Yt)
 
 
-        for i in range(0,n_subjects):
+        for i in range(2,n_subjects):
             results[i+1] = {}
 
             X_new = X[i]
@@ -457,9 +457,9 @@ def run_multi_objective_cnn(dataset,mode,model):
         warnings.warn("Unsupported mode")
 
 datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
+modes = ['within_subject','loso_subject','cross_subject']
 #datasets = ['8_channel_cVEP','256_channel_cVEP']
-#modes = ['cross_subject','within_subject','loso_subject']
+#modes = ['cross_subject']
 model = "multi_objective_cnn"
 
 for dataset in datasets:

@@ -151,12 +151,12 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
     results = {}
     loss, category_accuracy = model_inception.evaluate(x = X_test, y = {"category": yt_test}, verbose=0)
     
-    category_accuracy = category_accuracy*100
+    category_accuracy = category_accuracy
     #seq_accuracy = seq_accuracy*100
     #results['sequence_accuracy'] = np.array(seq_accuracy)
     results['category_accuracy'] = np.array(category_accuracy)
 
-    accuracy = category_accuracy/100
+    accuracy = category_accuracy
     num_trials = X_test.shape[0]
     time_min = (X_test.shape[0]* 504*(2.1/504)*(1/60))
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
@@ -291,7 +291,7 @@ def run_inception(dataset,mode,model):
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
-            X, accepted_chans = remove_bad_channels(X)
+            X, rejected_chans = remove_bad_channels(X)
             X, Ys, Yt = augment_data_trial(X, Ys, Yt)
 
 
