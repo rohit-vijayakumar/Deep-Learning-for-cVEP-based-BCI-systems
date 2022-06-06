@@ -28,6 +28,7 @@ from tensorflow.keras.regularizers import l2,l1
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 
 def epoch_data(X, Ys, n_subjects, n_classes):
     
@@ -158,6 +159,32 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     time_min = (X_test.shape[0]* 504*(2.1/504)*(1/60))
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
+
+    precision = precision_score(yt_test, pred_class_arr, average='weighted')
+    recall = recall_score(yt_test, pred_class_arr, average='weighted')
+    f1 = f1_score(yt_test, pred_class_arr, average='weighted')
+
+    cm_c = confusion_matrix(yt_test, pred_class_arr)
+
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+
+    yt_test_categorical = to_categorical(yt_test)
+    prediction_categorical = to_categorical(pred_class_arr)
+    for n in range(n_classes):
+        fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
+        roc_auc[n] = auc(fpr[n], tpr[n])
+
+    results['category_cm'] = np.array(cm_c)
+    results['recall'] = np.array(recall)
+    results['precision'] = np.array(precision)
+    results['f1_score'] = np.array(f1)
+    results['sequence_cm'] = np.array(cm_all)
+    results['category_cm'] = np.array(cm_c)
+    results['fpr'] = fpr
+    results['tpr'] = tpr
+    results['auc'] = roc_auc
 
     return results
 
@@ -337,6 +364,13 @@ def run_eeg2code(dataset,mode,model):
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
+                results[i+1][j+1]['category_cm'] =  results_eval['category_cm']
+                results[i+1][j+1]['recall'] = results_eval['recall']
+                results[i+1][j+1]['precision'] = results_eval['precision']
+                results[i+1][j+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][j+1]['fpr'] = results_eval['fpr']
+                results[i+1][j+1]['tpr'] = results_eval['tpr']
+                results[i+1][j+1]['auc'] = results_eval['auc']
                 # if(mode!='cross_subject'):
                 #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 #     results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
@@ -427,6 +461,13 @@ def run_eeg2code(dataset,mode,model):
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                results[i+1][fold+1]['recall'] = results_eval['recall']
+                results[i+1][fold+1]['precision'] = results_eval['precision']
+                results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                results[i+1][fold+1]['auc'] = results_eval['auc']
 
                 # if(mode!='cross_subject'):
                 #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']

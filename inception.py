@@ -28,7 +28,7 @@ from tensorflow.keras.regularizers import l2,l1
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 
 def build_inception_model(n_channels,n_classes):
     activation_fn = 'elu'
@@ -162,7 +162,45 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
 
+    pred_s, pred_c = model_inception.predict(X_test)
+    y_acc_all = []
+    cm_all = np.zeros((len(pred_s),2,2))
+    for j in range(len(pred_s)):
+        pred_seq = pred_s[j]
+        y_true = ys_test[j]
+        y_pred = pred_seq>=0.5
+        y_pred = y_pred.astype('int')
+        y_acc = accuracy_score(y_true, y_pred)
+        
+        cm_s = confusion_matrix(y_true, y_pred,labels=[0,1])
+        cm_all[j] = cm_s
+        y_acc_all.append(y_acc)
+    
+    pred_c_all = np.argmax(pred_c, axis=1)
+    cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c_all)
+    y_accuracy = np.mean(y_acc_all)
 
+    precision = precision_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+    recall = recall_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+    f1 = f1_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for n in range(n_classes):
+        fpr[n], tpr[n], _ = roc_curve(yt_test[:, n], pred_c[:, n])
+        roc_auc[n] = auc(fpr[n], tpr[n])
+
+    results['sequence_accuracy'] = np.array(y_accuracy)
+    results['category_cm'] = np.array(cm_c)
+    results['recall'] = np.array(recall)
+    results['precision'] = np.array(precision)
+    results['f1_score'] = np.array(f1)
+    results['sequence_cm'] = np.array(cm_all)
+    results['category_cm'] = np.array(cm_c)
+    results['fpr'] = fpr
+    results['tpr'] = tpr
+    results['auc'] = roc_auc
 
     # if(mode!='cross_subject'):
 
@@ -308,6 +346,14 @@ def run_inception(dataset,mode,model):
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
+                results[i+1][j+1]['category_cm'] =  results_eval['category_cm']
+                results[i+1][j+1]['recall'] = results_eval['recall']
+                results[i+1][j+1]['precision'] = results_eval['precision']
+                results[i+1][j+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][j+1]['fpr'] = results_eval['fpr']
+                results[i+1][j+1]['tpr'] = results_eval['tpr']
+                results[i+1][j+1]['auc'] = results_eval['auc']
+
                 # if(mode!='cross_subject'):
                 #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 #     #results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
@@ -359,7 +405,7 @@ def run_inception(dataset,mode,model):
                     X_test = X_test[:216]
                     ys_test = ys_test[:216]
                     yt_test = yt_test[:216]
-                    
+
                 if (len(yt_train.shape)!=2):
                     yt_train = to_categorical(yt_train)
                     yt_val = to_categorical(yt_val)
@@ -380,6 +426,13 @@ def run_inception(dataset,mode,model):
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                results[i+1][fold+1]['recall'] = results_eval['recall']
+                results[i+1][fold+1]['precision'] = results_eval['precision']
+                results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                results[i+1][fold+1]['auc'] = results_eval['auc']
                 # #results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 # if(mode!='cross_subject'):
                 #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']

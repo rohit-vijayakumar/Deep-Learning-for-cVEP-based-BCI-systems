@@ -28,7 +28,7 @@ from tensorflow.keras.regularizers import l2,l1
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 
 def build_multi_objective_cnn_model(n_channels,n_classes):
     activation_fn = 'tanh'
@@ -172,11 +172,11 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
     results = {}
     loss, _,_, seq_accuracy, category_accuracy = model_multi_objective_cnn.evaluate(x = X_test, y = {"sequence": ys_test, 
                                                                                     "category": yt_test}, verbose=0)
-    category_accuracy = category_accuracy*100
-    seq_accuracy = seq_accuracy*100
+    category_accuracy = category_accuracy
+    seq_accuracy = seq_accuracy
     results['category_accuracy'] = np.array(category_accuracy)
 
-    accuracy = category_accuracy/100
+    accuracy = category_accuracy
     num_trials = X_test.shape[0]
     time_min = (X_test.shape[0]* 504*(2.1/504)*(1/60))
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
@@ -196,13 +196,30 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
         cm_all[j] = cm_s
         y_acc_all.append(y_acc)
     
-    pred_c = np.argmax(pred_c, axis=1)
-    cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c)
-    y_accuracy = 100*np.mean(y_acc_all)
+    pred_c_all = np.argmax(pred_c, axis=1)
+    cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c_all)
+    y_accuracy = np.mean(y_acc_all)
+
+    precision = precision_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+    recall = recall_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+    f1 = f1_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
+
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for n in range(n_classes):
+        fpr[n], tpr[n], _ = roc_curve(yt_test[:, n], pred_c[:, n])
+        roc_auc[n] = auc(fpr[n], tpr[n])
 
     results['sequence_accuracy'] = np.array(y_accuracy)
+    results['recall'] = np.array(recall)
+    results['precision'] = np.array(precision)
+    results['f1_score'] = np.array(f1)
     results['sequence_cm'] = np.array(cm_all)
     results['category_cm'] = np.array(cm_c)
+    results['fpr'] = fpr
+    results['tpr'] = tpr
+    results['auc'] = roc_auc
 
     if(mode=='within_subject'):
 
@@ -346,7 +363,12 @@ def run_multi_objective_cnn(dataset,mode,model):
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
                 results[i+1][j+1]['sequence_cm'] = results_eval['sequence_cm']
                 results[i+1][j+1]['category_cm'] = results_eval['category_cm']
-
+                results[i+1][j+1]['recall'] = results_eval['recall']
+                results[i+1][j+1]['precision'] = results_eval['precision']
+                results[i+1][j+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][j+1]['fpr'] = results_eval['fpr']
+                results[i+1][j+1]['tpr'] = results_eval['tpr']
+                results[i+1][j+1]['auc'] = results_eval['auc']
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -414,6 +436,13 @@ def run_multi_objective_cnn(dataset,mode,model):
                 results[i+1][fold+1]['sequence_cm'] = results_eval['sequence_cm']
                 results[i+1][fold+1]['category_cm'] = results_eval['category_cm']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                results[i+1][fold+1]['recall'] = results_eval['recall']
+                results[i+1][fold+1]['precision'] = results_eval['precision']
+                results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][j+1]['fpr'] = results_eval['fpr']
+                results[i+1][j+1]['tpr'] = results_eval['tpr']
+                results[i+1][j+1]['auc'] = results_eval['auc']
+
                 if(mode=='within_subject'):
                     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
                     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']

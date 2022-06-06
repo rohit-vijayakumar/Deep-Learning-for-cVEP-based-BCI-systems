@@ -17,6 +17,9 @@ import scipy.io
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
+import tensorflow as tf
+from keras.utils.np_utils import to_categorical
 
 def eventDuration(): 
     for i_class in range(n_classes):
@@ -138,14 +141,40 @@ def evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weight
         rho = np.corrcoef(X_filtered[:, i_trial], T.T)[0, 1:]
         prediction[i_trial] = np.argmax(rho)
 
-    category_accuracy = 100*(np.sum(prediction == yt_test)/len(prediction))
+    category_accuracy = (np.sum(prediction == yt_test)/len(prediction))
     results['category_accuracy'] = np.array(category_accuracy)
 
-    accuracy = category_accuracy/100
+    accuracy = category_accuracy
     num_trials = X_test.shape[0]
     time_min = (X_test.shape[0]* 126*(2.1/126)*(1/60))
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
+
+    precision = precision_score(yt_test, prediction, average='weighted')
+    recall = recall_score(yt_test, prediction, average='weighted')
+    f1 = f1_score(yt_test, prediction, average='weighted')
+
+    cm_c = confusion_matrix(yt_test, prediction)
+
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+
+    yt_test_categorical = to_categorical(yt_test)
+    prediction_categorical = to_categorical(prediction)
+    for n in range(n_classes):
+
+        fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
+        roc_auc[n] = auc(fpr[n], tpr[n])
+
+    results['sequence_accuracy'] = np.array(y_accuracy)
+    results['recall'] = np.array(recall)
+    results['precision'] = np.array(precision)
+    results['f1_score'] = np.array(f1)
+    results['category_cm'] = np.array(cm_c)
+    results['fpr'] = fpr
+    results['tpr'] = tpr
+    results['auc'] = roc_auc
 
     # if(mode!='cross_subject'):
     #     acc_time_step =[]
@@ -279,7 +308,7 @@ def run_cca(dataset,mode,model):
 
             T, weights = train_cca(dataset,mode,model, X_train, yt_train,n_subjects, n_classes)
 
-            filename = './saved_models/{}/{}/{}/S{}.pickle'.format(model,dataset,mode,model,i+1)
+            filename = './saved_models/{}/{}/{}/{}.pickle'.format(model,dataset,mode,model,i+1)
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, 'wb') as handle:
                 pickle.dump(weights, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -306,6 +335,14 @@ def run_cca(dataset,mode,model):
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
+                results[i+1][j+1]['category_cm'] =  results_eval['category_cm']
+
+                results[i+1][j+1]['recall'] = results_eval['recall']
+                results[i+1][j+1]['precision'] = results_eval['precision']
+                results[i+1][j+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][j+1]['fpr'] = results_eval['fpr']
+                results[i+1][j+1]['tpr'] = results_eval['tpr']
+                results[i+1][j+1]['auc'] = results_eval['auc']
                 # if(mode!='cross_subject'):
                 #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 #     results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
@@ -373,7 +410,15 @@ def run_cca(dataset,mode,model):
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
-                
+                results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+
+                results[i+1][fold+1]['recall'] = results_eval['recall']
+                results[i+1][fold+1]['precision'] = results_eval['precision']
+                results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                results[i+1][fold+1]['auc'] = results_eval['auc']
+
                 filename = './saved_models/{}/{}/{}/S{}_f{}.pickle'.format(model,dataset,mode,i+1,fold+1)
                 os.makedirs(os.path.dirname(filename), exist_ok=True)
                 with open(filename, 'wb') as handle:
