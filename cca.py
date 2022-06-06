@@ -344,7 +344,7 @@ def run_cca(dataset,mode,model):
                 results_eval = evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weights)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
-                print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),,file=run_f)
+                print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
                 

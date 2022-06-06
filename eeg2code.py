@@ -386,7 +386,7 @@ def run_eeg2code(dataset,mode,model):
                 else:
                     X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
                     if(fold==0):
-                         X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
+                        X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
 
                         X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
                         Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
