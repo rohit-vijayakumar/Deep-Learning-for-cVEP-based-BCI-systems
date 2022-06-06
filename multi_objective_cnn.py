@@ -439,9 +439,9 @@ def run_multi_objective_cnn(dataset,mode,model):
                 results[i+1][fold+1]['recall'] = results_eval['recall']
                 results[i+1][fold+1]['precision'] = results_eval['precision']
                 results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
-                results[i+1][j+1]['fpr'] = results_eval['fpr']
-                results[i+1][j+1]['tpr'] = results_eval['tpr']
-                results[i+1][j+1]['auc'] = results_eval['auc']
+                results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                results[i+1][fold+1]['auc'] = results_eval['auc']
 
                 if(mode=='within_subject'):
                     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
