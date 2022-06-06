@@ -17,9 +17,11 @@ import scipy.io
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 import tensorflow as tf
 from keras.utils.np_utils import to_categorical
+from sklearn.preprocessing import label_binarize
 
 def eventDuration(): 
     for i_class in range(n_classes):
@@ -160,14 +162,13 @@ def evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weight
     tpr = dict()
     roc_auc = dict()
 
-    yt_test_categorical = to_categorical(yt_test)
-    prediction_categorical = to_categorical(prediction)
+    yt_test_categorical = label_binarize(yt_test, classes = np.arange(0,n_classes))
+    prediction_categorical = label_binarize(prediction,classes = np.arange(0,n_classes))
     for n in range(n_classes):
 
         fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
         roc_auc[n] = auc(fpr[n], tpr[n])
 
-    results['sequence_accuracy'] = np.array(y_accuracy)
     results['recall'] = np.array(recall)
     results['precision'] = np.array(precision)
     results['f1_score'] = np.array(f1)

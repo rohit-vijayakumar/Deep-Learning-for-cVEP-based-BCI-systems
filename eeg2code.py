@@ -29,6 +29,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
+from sklearn.preprocessing import label_binarize
 
 def epoch_data(X, Ys, n_subjects, n_classes):
     
@@ -170,8 +171,8 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     tpr = dict()
     roc_auc = dict()
 
-    yt_test_categorical = to_categorical(yt_test)
-    prediction_categorical = to_categorical(pred_class_arr)
+    yt_test_categorical = label_binarize(yt_test, classes = np.arange(0,n_classes))
+    prediction_categorical = label_binarize(pred_class_arr,classes = np.arange(0,n_classes))
     for n in range(n_classes):
         fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
         roc_auc[n] = auc(fpr[n], tpr[n])
