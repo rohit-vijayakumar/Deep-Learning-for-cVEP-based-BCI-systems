@@ -317,11 +317,16 @@ def run_eeg2code(dataset,mode,model):
                     X_test = standardize_data(X_test)
                     ys_test = Ys[j]
                     yt_test= Yt[j]
-                    yt_test = np.argmax(yt_test,axis=1)
+
                 else:
                     X_test = X_val
                     ys_test = ys_val
                     yt_test = yt_val
+
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
 
                 X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
 
@@ -377,7 +382,12 @@ def run_eeg2code(dataset,mode,model):
                 yt_train = data['yt_train']
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
+
                 yt_test = np.argmax(yt_test,axis=1)
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
 
                 X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
 

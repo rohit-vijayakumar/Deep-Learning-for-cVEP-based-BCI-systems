@@ -331,6 +331,11 @@ def run_multi_objective_cnn(dataset,mode,model):
                     ys_test = ys_val
                     yt_test = yt_val
 
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
+
                 results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
@@ -360,7 +365,7 @@ def run_multi_objective_cnn(dataset,mode,model):
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
-        for i in range(4,n_subjects):
+        for i in range(0,n_subjects):
             results[i+1] = {}
             for fold in range(0,15):
                 results[i+1][fold+1] = {}
@@ -377,6 +382,11 @@ def run_multi_objective_cnn(dataset,mode,model):
                 yt_train = data['yt_train']
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
+
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
 
                 if (len(yt_train.shape)!=2):
                     yt_train = to_categorical(yt_train)

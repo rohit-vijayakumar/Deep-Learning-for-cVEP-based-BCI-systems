@@ -296,6 +296,11 @@ def run_cca(dataset,mode,model):
                     ys_test = ys_val
                     yt_test = yt_val
 
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
+
                 results_eval = evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes, weights)
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
@@ -343,6 +348,10 @@ def run_cca(dataset,mode,model):
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
 
+                if (dataset == '256_channel_cVEP'):
+                    X_test = X_test[:216]
+                    ys_test = ys_test[:216]
+                    yt_test = yt_test[:216]
 
                 if (len(yt_train.shape)==2):
                     yt_train = np.argmax(yt_train,axis=1)
