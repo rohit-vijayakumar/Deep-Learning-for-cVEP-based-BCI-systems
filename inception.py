@@ -285,11 +285,17 @@ def run_inception(dataset,mode,model):
 
             for j in range(0,n_subjects):
                 results[i+1][j+1] = {}
-                X_test = X[j]
-                X_test = standardize_data(X_test)
-                ys_test = Ys[j]
-                yt_test= Yt[j]
-                yt_test = to_categorical(yt_test)
+                if(j!=i):
+                    X_test = X[j]
+                    X_test = standardize_data(X_test)
+                    ys_test = Ys[j]
+                    yt_test= Yt[j]
+                    yt_test = to_categorical(yt_test)
+
+                else:
+                    X_test = X_val
+                    ys_test = ys_val
+                    yt_test = yt_val
 
                 results_eval = evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 

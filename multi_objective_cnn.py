@@ -320,11 +320,16 @@ def run_multi_objective_cnn(dataset,mode,model):
 
             for j in range(0,n_subjects):
                 results[i+1][j+1] = {}
-                X_test = X[j]
-                X_test = standardize_data(X_test)
-                ys_test = Ys[j]
-                yt_test= Yt[j]
-                yt_test = to_categorical(yt_test)
+                if(j!=i):
+                    X_test = X[j]
+                    X_test = standardize_data(X_test)
+                    ys_test = Ys[j]
+                    yt_test= Yt[j]
+                    yt_test = to_categorical(yt_test)
+                else:
+                    X_test = X_val
+                    ys_test = ys_val
+                    yt_test = yt_val
 
                 results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
@@ -334,10 +339,6 @@ def run_multi_objective_cnn(dataset,mode,model):
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
 
-                if(mode=='within_subject'):
-                    results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
-                    results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
-                    results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -359,7 +360,7 @@ def run_multi_objective_cnn(dataset,mode,model):
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
-        for i in range(0,n_subjects):
+        for i in range(4,n_subjects):
             results[i+1] = {}
             for fold in range(0,15):
                 results[i+1][fold+1] = {}
@@ -411,8 +412,8 @@ def run_multi_objective_cnn(dataset,mode,model):
     else:
         warnings.warn("Unsupported mode")
 
-datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
+datasets = ['256_channel_cVEP']
+modes = ['within_subject']
 #datasets = ['8_channel_cVEP','256_channel_cVEP']
 #modes = ['cross_subject','within_subject','loso_subject']
 model = "multi_objective_cnn"

@@ -28,9 +28,23 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
+from cca import run_cca
+from eeg2code import run_eeg2code
+from multi_objective_cnn import run_multi_objective_cnn
+from inception import run_inception
+
 dataset = '8_channel_cVEP'
 mode = 'within_subject'
-model = 'cca
+model = 'cca'
 
 if(model=='cca'):
-    run_cca(dataset, mode)
+    run_cca(dataset, mode,model)
+
+elif(model=='eeg2code')
+    run_eeg2code(dataset, mode,model)
+
+elif(model=='multi_objective_cnn')
+    run_multi_objective_cnn(dataset, mode,model)
+
+elif(model=='inception')
+    run_inception(dataset, mode,model)

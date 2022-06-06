@@ -284,13 +284,20 @@ def run_eeg2code(dataset,mode,model):
 
             X_new = X[i]
             ys_new = Ys[i]
-            yt_new = Yt[i]
-            yt_new = np.argmax(yt_new,axis=1)
+            yt_new = Yt[i].flatten()
+            y_new= np.concatenate((yt_new[..., np.newaxis],ys_new), axis=1)
 
-            X_train, X_val, ys_train, ys_val = train_test_split(X_new, ys_new, test_size=0.2, shuffle= True)
+            X_train, X_val, y_train, y_val = train_test_split(X_new, y_new, test_size=0.2,stratify=y_new[:,0], shuffle= True)
 
             X_train = standardize_data(X_train)
             X_val = standardize_data(X_val)
+
+            ys_train = y_train[:,1:]
+            ys_val = y_val[:,1:]
+
+            yt_train = y_train[:,0]
+            yt_val = y_val[:,0]
+
 
             X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
             X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
@@ -305,11 +312,16 @@ def run_eeg2code(dataset,mode,model):
 
             for j in range(0,n_subjects):
                 results[i+1][j+1] = {}
-                X_test = X[j]
-                X_test = standardize_data(X_test)
-                ys_test = Ys[j]
-                yt_test= Yt[j]
-                yt_test = np.argmax(yt_test,axis=1)
+                if(j!=i):
+                    X_test = X[j]
+                    X_test = standardize_data(X_test)
+                    ys_test = Ys[j]
+                    yt_test= Yt[j]
+                    yt_test = np.argmax(yt_test,axis=1)
+                else:
+                    X_test = X_val
+                    ys_test = ys_val
+                    yt_test = yt_val
 
                 X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
 
