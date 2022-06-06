@@ -174,7 +174,6 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
                                                                                     "category": yt_test}, verbose=0)
     category_accuracy = category_accuracy*100
     seq_accuracy = seq_accuracy*100
-    results['sequence_accuracy'] = np.array(seq_accuracy)
     results['category_accuracy'] = np.array(category_accuracy)
 
     accuracy = category_accuracy/100
@@ -183,27 +182,29 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
 
-    if(mode=='within_subject'):
-
-        pred_s, pred_c = model_multi_objective_cnn.predict(X_test)
-        y_acc_all = []
-        cm_all = np.zeros((len(pred_s),2,2))
-        for j in range(len(pred_s)):
-            pred_seq = pred_s[j]
-            y_true = ys_test[j]
-            y_pred = pred_seq>=0.5
-            y_pred = y_pred.astype('int')
-            y_acc = accuracy_score(y_true, y_pred)
-            
-            cm_s = confusion_matrix(y_true, y_pred,labels=[0,1])
-            cm_all[j] = cm_s
-            y_acc_all.append(y_acc)
+    pred_s, pred_c = model_multi_objective_cnn.predict(X_test)
+    y_acc_all = []
+    cm_all = np.zeros((len(pred_s),2,2))
+    for j in range(len(pred_s)):
+        pred_seq = pred_s[j]
+        y_true = ys_test[j]
+        y_pred = pred_seq>=0.5
+        y_pred = y_pred.astype('int')
+        y_acc = accuracy_score(y_true, y_pred)
         
-        pred_c = np.argmax(pred_c, axis=1)
-        cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c)
+        cm_s = confusion_matrix(y_true, y_pred,labels=[0,1])
+        cm_all[j] = cm_s
+        y_acc_all.append(y_acc)
+    
+    pred_c = np.argmax(pred_c, axis=1)
+    cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c)
+    y_accuracy = 100*np.mean(y_acc_all)
 
-        results['sequence_cm'] = np.array(cm_all)
-        results['category_cm'] = np.array(cm_c)
+    results['sequence_accuracy'] = np.array(y_accuracy)
+    results['sequence_cm'] = np.array(cm_all)
+    results['category_cm'] = np.array(cm_c)
+
+    if(mode=='within_subject'):
 
         acc_time_step =[]
         acc_time_step_r =[]
@@ -343,6 +344,8 @@ def run_multi_objective_cnn(dataset,mode,model):
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
+                results[i+1][j+1]['sequence_cm'] = results_eval['sequence_cm']
+                results[i+1][j+1]['category_cm'] = results_eval['category_cm']
 
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
@@ -408,6 +411,8 @@ def run_multi_objective_cnn(dataset,mode,model):
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
+                results[i+1][fold+1]['sequence_cm'] = results_eval['sequence_cm']
+                results[i+1][fold+1]['category_cm'] = results_eval['category_cm']
                 results[i+1][fold+1]['ITR'] = results_eval['ITR']
                 if(mode=='within_subject'):
                     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
@@ -422,8 +427,8 @@ def run_multi_objective_cnn(dataset,mode,model):
     else:
         warnings.warn("Unsupported mode")
 
-datasets = ['256_channel_cVEP']
-modes = ['within_subject']
+datasets = ['256_channel_cVEP','8_channel_cVEP']
+modes = ['loso_subject','within_subject','cross_subject']
 #datasets = ['8_channel_cVEP','256_channel_cVEP']
 #modes = ['cross_subject','within_subject','loso_subject']
 model = "multi_objective_cnn"
