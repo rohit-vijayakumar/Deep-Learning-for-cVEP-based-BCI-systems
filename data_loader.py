@@ -13,6 +13,7 @@ from scipy import signal
 import warnings
 from data_preprocessing import*
 from sklearn.model_selection import train_test_split
+import tensorflow as tf
 from keras.utils.np_utils import to_categorical
 
 def load_raw_dataset(data_path, label_path, sfreq, dfreq, num_chans):
@@ -433,7 +434,7 @@ def load_preprocessed_data_cv(dataset, mode):
         n_subjects = 5
         
         if (mode=='within_subject'):
-            X, Ys, Yt = augment_data_chan(X, Ys, Yt)
+            X, Ys, Yt = augment_data_trial(X, Ys, Yt)
             for i in range(0,n_subjects):
                 foldn = 15
                 for fold in range(0,foldn):
@@ -686,7 +687,7 @@ def load_data(mode,dataset,model,i,fold):
                 ys_test = ys_test[Yt_test!=20]
                 yt_test = yt_test[Yt_test!=20][:,:20]
 
-            yt_test = np.argmax(yt_test, axis=1)
+                yt_test = np.argmax(yt_test, axis=1)
 
             with open('./datasets/{}_{}/S{}.pickle'.format(dataset,mode,i+1), 'rb') as handle:
                 data = pickle.load(handle)   
@@ -713,8 +714,8 @@ def load_data(mode,dataset,model,i,fold):
                     ys_val = ys_val[Yt_val!=20]
                     yt_val = yt_val[Yt_val!=20][:,:20]
                     
-                yt_train = np.argmax(yt_train, axis=1) 
-                yt_val = np.argmax(yt_val, axis=1)
+                    yt_train = np.argmax(yt_train, axis=1) 
+                    yt_val = np.argmax(yt_val, axis=1)
     else:
         warnings.warn("Unsupported mode")
 

@@ -30,27 +30,22 @@ from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 
-def build_multi_objective_cnn_model(n_channels,n_classes):
+def build_multi_objective_cnn_1f_model(n_channels,n_classes):
     activation_fn = 'tanh'
     inputs = Input(shape=(504,n_channels), dtype="float32")
     x = Reshape((504,n_channels,1))(inputs)
     x = Masking(mask_value=0.)(x)
-
-    x = Conv2D(filters=8, kernel_size=(64,1), strides=(1,1), padding='same')(x)
-    x = BatchNormalization()(x)
-    x = Dropout(0.25)(x)
-
-    x = Conv2D(filters=8, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
+    x = Conv2D(filters=1, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
     x = BatchNormalization()(x)
     x = Dropout(0.25)(x)
     
     
-    x = Conv2D(filters=8, kernel_size=(32,1), strides=(2,1), padding='same')(x)
+    x = Conv2D(filters=8, kernel_size=(48,1), strides=(2,1), padding='same')(x)
     x = BatchNormalization()(x)
     x = Activation(activation_fn)(x)               
     x = Dropout(0.25)(x)
     
-    x = Conv2D(filters=4, kernel_size=(8,1), strides=(2,1), padding='same')(x)
+    x = Conv2D(filters=4, kernel_size=(12,1), strides=(2,1), padding='same')(x)
     x = BatchNormalization()(x)
     x = Activation(activation_fn)(x)              
     x = Dropout(0.25)(x)
@@ -76,60 +71,7 @@ def build_multi_objective_cnn_model(n_channels,n_classes):
 
     return model
 
-# def build_multi_objective_cnn_model(n_channels,n_classes):
-#     activation_fn = 'tanh'
-#     inputs = Input(shape=(504,n_channels), dtype="float32")
-#     x = Reshape((504,n_channels,1))(inputs)
-#     x = Masking(mask_value=0.)(x)
-
-#     conv1 = Conv2D(filters=8, kernel_size=(64,1), strides=(1,1), padding='same')(x)
-#     bn1 = BatchNormalization()(conv1)
-#     actv1 = Activation(activation_fn)(bn1)
-#     drop1 = Dropout(0.25)(actv1)
-   
-#     conv2 = Conv2D(filters=8, kernel_size=(32,1), strides=(1,1), padding='same')(x)
-#     bn2 = BatchNormalization()(conv2)
-#     actv2 = Activation(activation_fn)(bn2)
-#     drop2 = Dropout(0.25)(actv2)
-
-#     dconv1 = DepthwiseConv2D(kernel_size=(1,n_channels),strides=(1, 1), padding="valid", depth_multiplier=1)(drop1)
-#     dconv2 = DepthwiseConv2D(kernel_size=(1,n_channels),strides=(1, 1), padding="valid", depth_multiplier=1)(drop2)
-
-#     conc1 = Concatenate(axis=3)([dconv1, dconv2])
-#     pool1 = AveragePooling2D(pool_size=(4, 1), strides=None, padding="valid")(conc1)
-   
-#     x = Conv2D(filters=8, kernel_size=(16,1), strides=(1,1), padding='same')(pool1)
-#     x = BatchNormalization()(x)
-#     x = Activation(activation_fn)(x)              
-#     x = Dropout(0.25)(x)
-   
-#     x = Conv2D(filters=4, kernel_size=(8,1), strides=(1,1), padding='same')(x)
-#     x = BatchNormalization()(x)
-#     x = Activation(activation_fn)(x)              
-#     x = Dropout(0.25)(x)
-
-#     x = Flatten()(x)
-#     x6 = Dense(126, activation=activation_fn)(x)
-#     x1 = Dropout(0.25)(x6)
-   
-#     output1 = Dense(126, activation="sigmoid", name = 'sequence')(x1)
-   
-#     output2 = Dense(n_classes, activation="softmax", name = 'category')(x1)
-
-#     model = Model(inputs, outputs=[output1,output2])
-
-#     losses = {"sequence": 'binary_crossentropy',
-#               "category": "categorical_crossentropy"}
-#     metric = {"sequence": "accuracy",
-#               "category": "accuracy"}
-
-#     model.compile(loss=losses,
-#                 optimizer='adam',
-#                 metrics=metric)
-
-#     return model
-
-def train_multi_objective_cnn(dataset,mode,model, X_train, ys_train,yt_train,X_val, ys_val,yt_val,n_subjects,n_classes, current_subj, current_fold):
+def train_multi_objective_cnn_1f(dataset,mode,model, X_train, ys_train,yt_train,X_val, ys_val,yt_val,n_subjects,n_classes, current_subj, current_fold):
     warnings.filterwarnings("ignore")
     results = {}
     if(dataset=='8_channel_cVEP'):
@@ -149,16 +91,14 @@ def train_multi_objective_cnn(dataset,mode,model, X_train, ys_train,yt_train,X_v
     else:
         warnings.warn("Unsupported dataset")
 
-    model_multi_objective_cnn = build_multi_objective_cnn_model(n_channels,n_classes)
-    callback = EarlyStopping(monitor='val_category_loss', patience=40)
+    model_multi_objective_cnn_1f = build_multi_objective_cnn_1f_model(n_channels,n_classes)
+    callback = EarlyStopping(monitor='val_category_loss', patience=20)
         
     if(current_fold!=None):
-        current_f = '_f'+ str(current_fold+1)        
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(model,dataset,mode,current_subj+1,current_f)
-        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)   
+        current_f = '_f'+ str(current_fold+1)
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(dataset,mode,model,current_subj+1,current_f)
     else:
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(model,dataset,mode,current_subj+1)
-        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)   
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(dataset,mode,model,current_subj+1)
         
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -167,15 +107,15 @@ def train_multi_objective_cnn(dataset,mode,model, X_train, ys_train,yt_train,X_v
     mode='max',
     save_best_only=True)
 
-    history = model_multi_objective_cnn.fit(x = X_train, y = {"sequence": ys_train, "category": yt_train}, batch_size = 128, 
+    history = model_multi_objective_cnn_1f.fit(x = X_train, y = {"sequence": ys_train, "category": yt_train}, batch_size = 256, 
                   epochs = 100, verbose=0, validation_data=(X_val, {"sequence": ys_val, "category": yt_val}), 
                             callbacks=[callback, model_checkpoint_callback])
 
-    return model_multi_objective_cnn, history.history
+    return model_multi_objective_cnn_1f, history.history
 
-def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test,yt_test,n_subjects,n_classes,codebook):
+def evaluate_multi_objective_cnn_1f(model_multi_objective_cnn_1f, dataset,mode,model,X_test,ys_test,yt_test,n_subjects,n_classes,codebook):
     results = {}
-    loss, _,_, seq_accuracy, category_accuracy = model_multi_objective_cnn.evaluate(x = X_test, y = {"sequence": ys_test, 
+    loss, _,_, seq_accuracy, category_accuracy = model_multi_objective_cnn_1f.evaluate(x = X_test, y = {"sequence": ys_test, 
                                                                                     "category": yt_test}, verbose=0)
     category_accuracy = category_accuracy*100
     seq_accuracy = seq_accuracy*100
@@ -188,9 +128,9 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
 
-    if(mode=='within_subject'):
+    if(mode!='cross_subject'):
 
-        pred_s, pred_c = model_multi_objective_cnn.predict(X_test)
+        pred_s, pred_c = model_multi_objective_cnn_1f.predict(X_test)
         y_acc_all = []
         cm_all = np.zeros((len(pred_s),2,2))
         for j in range(len(pred_s)):
@@ -219,7 +159,7 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
             X_test_new = X_test.copy()
             X_test_new[:,k:,:] = 0
 
-            _, pred = model_multi_objective_cnn.predict(X_test_new)
+            _, pred = model_multi_objective_cnn_1f.predict(X_test_new)
             prediction = np.argmax(pred,axis=1)
 
             acc = 100*(np.sum(prediction == np.argmax(yt_test,axis=1))/len(prediction))
@@ -260,10 +200,10 @@ def evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X
 
     return results
 
-def run_multi_objective_cnn(dataset,mode,model):            
-    filename = "./results/{}/{}/{}/{}_{}_run.txt".format(model,dataset,mode,model,mode)
+def run_multi_objective_cnn_1f(dataset,mode,model):            
+    filename = "./results/{}/{}/{}/{}_run.txt".format(dataset,mode,model,model)
     os.makedirs(os.path.dirname(filename), exist_ok=True)           
-    run_f = open(filename, "w")
+    run_f = open(filename, "a")
     if(mode=='cross_subject'):
         results = {}
         with open('./datasets/{}.pickle'.format(dataset), 'rb') as handle:
@@ -320,7 +260,7 @@ def run_multi_objective_cnn(dataset,mode,model):
             yt_train = to_categorical(yt_train)
             yt_val = to_categorical(yt_val)
 
-            model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
+            model_multi_objective_cnn_1f, model_history = train_multi_objective_cnn_1f(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
             results[i+1]['history'] = model_history
 
             for j in range(0,n_subjects):
@@ -331,22 +271,21 @@ def run_multi_objective_cnn(dataset,mode,model):
                 yt_test= Yt[j]
                 yt_test = to_categorical(yt_test)
 
-                results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
+                results_eval = evaluate_multi_objective_cnn_1f(model_multi_objective_cnn_1f, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                results[i+1][j+1]['ITR'] = results_eval['ITR']
-
-                if(mode=='within_subject'):
+                if(mode!='cross_subject'):
                     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
                     results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                    results[i+1][j+1]['ITR'] = results_eval['ITR']
                     results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
+                    #results[i+1][j+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
-        filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'wb') as handle:
+        with open('./results/{}/{}/{}/multi_objective_cnn_1f.pickle'.format(dataset,mode,model), 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     elif(mode=='within_subject' or mode=='loso_subject'):
@@ -382,41 +321,41 @@ def run_multi_objective_cnn(dataset,mode,model):
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
 
-                if (len(yt_train.shape)!=2):
-                    yt_train = to_categorical(yt_train)
-                    yt_val = to_categorical(yt_val)
-                    yt_test = to_categorical(yt_test)
 
-                model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
+                yt_train = to_categorical(yt_train)
+                yt_val = to_categorical(yt_val)
+                yt_test = to_categorical(yt_test)
+
+                model_multi_objective_cnn_1f, model_history = train_multi_objective_cnn_1f(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
                 results[i+1][fold+1]['history'] = model_history
 
-                results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
+                results_eval = evaluate_multi_objective_cnn_1f(model_multi_objective_cnn_1f, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                results[i+1][fold+1]['ITR'] = results_eval['ITR']
-                if(mode=='within_subject'):
+                if(mode!='cross_subject'):
                     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
                     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                    results[i+1][fold+1]['ITR'] = results_eval['ITR']
                     results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+                    #results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
-        filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open('./results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode), 'wb') as handle:
+        with open('./results/{}/{}/{}/eeg2code.pickle'.format(dataset,mode,model), 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     else:
         warnings.warn("Unsupported mode")
 
 datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
+modes = ['cross_subject']
 #datasets = ['8_channel_cVEP','256_channel_cVEP']
-#modes = ['cross_subject','within_subject','loso_subject']
-model = "multi_objective_cnn"
+modes = ['cross_subject','within_subject','loso_subject']
+model = "multi_objective_cnn_1f"
 
 for dataset in datasets:
     for mode in modes: 
         print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
-        run_multi_objective_cnn(dataset, mode, model)
+        run_multi_objective_cnn_1f(dataset, mode, model)

@@ -31,7 +31,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 def epoch_data(X, Ys, n_subjects, n_classes):
     
-    n_samples = 36 #150ms
+    n_samples = 60 #150ms
     n_steps = 4
     n_trials = int(X.shape[1]/n_steps)
 
@@ -54,7 +54,7 @@ def build_eeg2code_model(n_channels):
     model = Sequential()
     # permute input so that it is as in EEG2Code paper
 
-    model.add(Permute((3,2,1), input_shape=(36,n_channels,1)))
+    model.add(Permute((3,2,1), input_shape=(n_samples,n_channels,1)))
     # layer1
     model.add(Conv2D(16, kernel_size=(n_channels, 1), padding='valid', strides=(1, 1), data_format='channels_first', activation='relu'))
     model.add(BatchNormalization(axis=1, scale=False, center=False))
@@ -93,6 +93,7 @@ def train_eeg2code(dataset,mode,model, X_train, ys_train,X_val, ys_val,n_subject
         n_subjects = 30
         n_classes = 20
         n_channels = 8
+        n_samples = 60
         mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
         codes = mat['codes'].astype('float32')
         codebook = np.moveaxis(codes,1,0).astype('float32')
@@ -101,19 +102,22 @@ def train_eeg2code(dataset,mode,model, X_train, ys_train,X_val, ys_val,n_subject
         n_subjects = 5
         n_classes = 36
         n_channels = 256
+        n_samples = 60
         codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
         codes = np.moveaxis(codebook,1,0)
     else:
         warnings.warn("Unsupported dataset")
 
-    model_eeg2code = build_eeg2code_model(n_channels)
+    model_eeg2code = build_eeg2code_model(n_channels,n_samples)
     callback = EarlyStopping(monitor='val_loss', patience=10)
         
     if(current_fold!=None):
         current_f = '_f'+ str(current_fold+1)
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(dataset,mode,model,current_subj+1,current_f)
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(model,dataset,mode,current_subj+1,current_f)
+        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)  
     else:
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(dataset,mode,model,current_subj+1)
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(model,dataset,mode,current_subj+1)
+        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)   
         
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -149,89 +153,96 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     results['sequence_accuracy'] = np.array(sequence_acc)
     results['category_accuracy'] = np.array(category_acc)
 
-
-    if(mode!='cross_subject'):
-        acc_time_step =[]
-        acc_time_step_r =[]
-        itr_time_step = []
-        pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-        pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-        for k in range(1, X_test.shape[1]):
-            X_test_new = X_test[:,:k,:] 
-            ys_test_new = ys_test[:,:k] 
-
-            pred_class_arr = []
-            pred_seq_arr = []
-            corr_all = np.zeros((X_test_new.shape[0],n_classes))
-            for trial in range (X_test_new.shape[0]):
-                _, seq_acc = model_eeg2code.evaluate(X_test_new[trial][..., np.newaxis], ys_test_new[trial], verbose=0)
-                pred_seq_arr.append(seq_acc*100)
-                pred_seq = model_eeg2code.predict(X_test_new[trial][..., np.newaxis])[:,0]
-                target_seq = ys_test_new[trial,:]
-                corr_arr = []
-                for k1 in range(len(codebook)):
-                    corr = np.corrcoef(pred_seq,codebook[k1,:k])[0, 1:]
-                    corr_arr.append(corr)
-                
-                corr_all[trial] = corr_arr
-                pred_class = np.argmax(corr_arr)
-                pred_class_arr.append(pred_class)
-                
-            category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
-            sequence_acc = np.mean(pred_seq_arr)
-            
-            acc_time_step.append(category_acc)
-
-            
-            accuracy = category_acc/100
-            num_trials = X_test_new.shape[0]
-            time_min = (X_test_new.shape[0]* k*(2.1/126)*(1/60))
-            itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
-            itr_time_step.append(itr)
-
-
-            pred_time_step[:,k] = corr_all
-            
-        # for k in range(1, X_test.shape[1]):
-        #     r = 126-k-1
-        #     X_test_new = X_test[:,r:,:] 
-        #     ys_test_new = ys_test[:,r:] 
-
-        #     pred_class_arr = []
-        #     pred_seq_arr = []
-        #     corr_all = np.zeros((X_test_new.shape[0],n_classes))
-        #     for trial in range (X_test_new.shape[0]):
-        #         _, seq_acc = model_eeg2code.evaluate(X_test_new[trial][..., np.newaxis], ys_test_new[trial], verbose=0)
-        #         pred_seq_arr.append(seq_acc*100)
-        #         pred_seq = model_eeg2code.predict(X_test_new[trial][..., np.newaxis])[:,0]
-        #         target_seq = ys_test_new[trial,:]
-        #         corr_arr = []
-        #         for k1 in range(len(codebook)):
-        #             corr = np.corrcoef(pred_seq,codebook[k1,r:])[0, 1:]
-        #             corr_arr.append(corr)
-                
-        #         corr_all[trial] = corr_arr
-        #         pred_class = np.argmax(corr_arr)
-        #         pred_class_arr.append(pred_class)
-                
-        #     category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
-        #     sequence_acc = np.mean(pred_seq_arr)
-            
-        #     acc_time_step_r.append(category_acc)
-        #     pred_time_step_r[:,k] = corr_all
-        
-
-        results['variable_time_steps'] = np.array(acc_time_step)
-        #results['variable_time_steps_r'] = np.array(acc_time_step_r)
-        results['ITR_time_steps'] = np.array(itr_time_step)
-
-        results['pred_time_step'] = pred_time_step
-        #results['pred_time_step_r'] = pred_time_step_r
+    accuracy = category_acc/100
+    num_trials = X_test.shape[0]
+    time_min = (X_test.shape[0]* 504*(2.1/504)*(1/60))
+    itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
+    results['ITR'] = np.array(itr)
 
     return results
 
-def run_eeg2code(dataset,mode,model):            
+    # if(mode!='cross_subject'):
+    #     acc_time_step =[]
+    #     acc_time_step_r =[]
+    #     itr_time_step = []
+    #     pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+    #     pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+    #     for k in range(1, X_test.shape[1]):
+    #         print(k)
+    #         X_test_new = X_test[:,:k,:] 
+    #         ys_test_new = ys_test[:,:k] 
 
+    #         pred_class_arr = []
+    #         pred_seq_arr = []
+    #         corr_all = np.zeros((X_test_new.shape[0],n_classes))
+    #         for trial in range (X_test_new.shape[0]):
+    #             _, seq_acc = model_eeg2code.evaluate(X_test_new[trial][..., np.newaxis], ys_test_new[trial], verbose=0)
+    #             pred_seq_arr.append(seq_acc*100)
+    #             pred_seq = model_eeg2code.predict(X_test_new[trial][..., np.newaxis])[:,0]
+    #             target_seq = ys_test_new[trial,:]
+    #             corr_arr = []
+    #             for k1 in range(len(codebook)):
+    #                 corr = np.corrcoef(pred_seq,codebook[k1,:k])[0, 1:]
+    #                 corr_arr.append(corr)
+                
+    #             corr_all[trial] = corr_arr
+    #             pred_class = np.argmax(corr_arr)
+    #             pred_class_arr.append(pred_class)
+                
+    #         category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
+    #         sequence_acc = np.mean(pred_seq_arr)
+            
+    #         acc_time_step.append(category_acc)
+
+            
+    #         accuracy = category_acc/100
+    #         num_trials = X_test_new.shape[0]
+    #         time_min = (X_test_new.shape[0]* k*(2.1/126)*(1/60))
+    #         itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
+    #         itr_time_step.append(itr)
+
+
+    #         pred_time_step[:,k] = corr_all
+            
+    #     for k in range(1, X_test.shape[1]):
+    #         r = 126-k-1
+    #         X_test_new = X_test[:,r:,:] 
+    #         ys_test_new = ys_test[:,r:] 
+
+    #         pred_class_arr = []
+    #         pred_seq_arr = []
+    #         corr_all = np.zeros((X_test_new.shape[0],n_classes))
+    #         for trial in range (X_test_new.shape[0]):
+    #             _, seq_acc = model_eeg2code.evaluate(X_test_new[trial][..., np.newaxis], ys_test_new[trial], verbose=0)
+    #             pred_seq_arr.append(seq_acc*100)
+    #             pred_seq = model_eeg2code.predict(X_test_new[trial][..., np.newaxis])[:,0]
+    #             target_seq = ys_test_new[trial,:]
+    #             corr_arr = []
+    #             for k1 in range(len(codebook)):
+    #                 corr = np.corrcoef(pred_seq,codebook[k1,r:])[0, 1:]
+    #                 corr_arr.append(corr)
+                
+    #             corr_all[trial] = corr_arr
+    #             pred_class = np.argmax(corr_arr)
+    #             pred_class_arr.append(pred_class)
+                
+    #         category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
+    #         sequence_acc = np.mean(pred_seq_arr)
+            
+    #         acc_time_step_r.append(category_acc)
+    #         pred_time_step_r[:,k] = corr_all
+        
+    #     results['variable_time_steps'] = np.array(acc_time_step)
+    #     results['variable_time_steps_r'] = np.array(acc_time_step_r)
+    #     results['ITR_time_steps'] = np.array(itr_time_step)
+
+    #     results['pred_time_step'] = pred_time_step
+    #     results['pred_time_step_r'] = pred_time_step_r
+
+def run_eeg2code(dataset,mode,model):            
+    filename = "./results/{}/{}/{}/{}_{}_run.txt".format(model,dataset,mode,model,mode)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)           
+    run_f = open(filename, "w")
     if(mode=='cross_subject'):
         results = {}
         with open('./datasets/{}.pickle'.format(dataset), 'rb') as handle:
@@ -247,10 +258,13 @@ def run_eeg2code(dataset,mode,model):
         sfreq = 240
         X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
 
-
         if(dataset=='8_channel_cVEP'):
             n_subjects = 30
             n_classes = 20
+            if (model=='eeg2code'):
+                X = X[:,:1500,:,:]
+                Ys = Ys[:,:1500]
+                Yt = Yt[:,:1500]
             mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
             codes = mat['codes'].astype('float32')
             codebook = np.moveaxis(codes,1,0).astype('float32')
@@ -261,8 +275,8 @@ def run_eeg2code(dataset,mode,model):
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
-            X, accepted_chans = remove_bad_channels(X)
-            X, Ys, Yt = augment_data_trial(X, Ys, Yt)
+            #X, accepted_chans = remove_bad_channels(X)
+            #X, Ys, Yt = augment_data_trial(X, Ys, Yt)
 
 
         for i in range(0,n_subjects):
@@ -302,17 +316,21 @@ def run_eeg2code(dataset,mode,model):
                 results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test_epoched,Ys_test_epoched, yt_test, n_subjects,n_classes,codebook)
 
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
+                print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                if(mode!='cross_subject'):
-                    results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
-                    #results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                    results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                results[i+1][j+1]['ITR'] = results_eval['ITR']
+                # if(mode!='cross_subject'):
+                #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                #     results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
+                #     results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                    
+                #     results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
+                #     results[i+1][j+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
-                    results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
-                    #results[i+1][j+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
-
-        with open('./results/{}/{}/{}/eeg2code.pickle'.format(dataset,mode,model), 'wb') as handle:
+        filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     elif(mode=='within_subject' or mode=='loso_subject'):
@@ -365,24 +383,28 @@ def run_eeg2code(dataset,mode,model):
                 results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test_epoched,Ys_test_epoched, yt_test, n_subjects,n_classes,codebook)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
+                print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                if(mode!='cross_subject'):
-                    results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
-                    #results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                    results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                # if(mode!='cross_subject'):
+                #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                #     results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
+                #     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                    
+                #     results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+                #     results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
-                    results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
-                    #results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
-
-        with open('./results/{}/{}/{}/eeg2code.pickle'.format(dataset,mode,model), 'wb') as handle:
+        filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     else:
         warnings.warn("Unsupported mode")
 
-datasets = ['8_channel_cVEP','256_channel_cVEP']
-modes = ['within_subject','loso_subject','cross_subject']
+datasets = ['256_channel_cVEP','8_channel_cVEP']
+modes = ['loso_subject','within_subject','cross_subject']
 model = "eeg2code"
 
 for dataset in datasets:
