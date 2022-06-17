@@ -53,6 +53,7 @@ def epoch_data(X, Ys, n_subjects, n_classes):
     return data_X_trial, data_Ys_trial
 
 def build_eeg2code_model(n_channels):
+    n_samples = 60
     model = Sequential()
     # permute input so that it is as in EEG2Code paper
 
@@ -88,7 +89,7 @@ def build_eeg2code_model(n_channels):
 
     return model
 
-def train_eeg2code(dataset,mode,model, X_train, ys_train,X_val, ys_val,n_subjects,n_classes, current_subj, current_fold):
+def train_eeg2code(model_eeg2code,dataset,mode,model, X_train, ys_train,X_val, ys_val,n_subjects,n_classes, current_subj, current_fold):
     warnings.filterwarnings("ignore")
     results = {}
     if(dataset=='8_channel_cVEP'):
@@ -110,7 +111,6 @@ def train_eeg2code(dataset,mode,model, X_train, ys_train,X_val, ys_val,n_subject
     else:
         warnings.warn("Unsupported dataset")
 
-    model_eeg2code = build_eeg2code_model(n_channels,n_samples)
     callback = EarlyStopping(monitor='val_loss', patience=10)
         
     if(current_fold!=None):
@@ -167,27 +167,26 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
 
     cm_c = confusion_matrix(yt_test, pred_class_arr)
 
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
+    # fpr = dict()
+    # tpr = dict()
+    # roc_auc = dict()
 
-    yt_test_categorical = label_binarize(yt_test, classes = np.arange(0,n_classes))
-    prediction_categorical = label_binarize(pred_class_arr,classes = np.arange(0,n_classes))
-    for n in range(n_classes):
-        fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
-        roc_auc[n] = auc(fpr[n], tpr[n])
+    # yt_test_categorical = label_binarize(yt_test, classes = np.arange(0,n_classes))
+    # prediction_categorical = label_binarize(pred_class_arr,classes = np.arange(0,n_classes))
+    # for n in range(n_classes):
+    #     fpr[n], tpr[n], _ = roc_curve(yt_test_categorical[:, n], prediction_categorical[:, n])
+    #     roc_auc[n] = auc(fpr[n], tpr[n])
 
-    results['category_cm'] = np.array(cm_c)
+    # results['category_cm'] = np.array(cm_c)
     results['recall'] = np.array(recall)
     results['precision'] = np.array(precision)
     results['f1_score'] = np.array(f1)
-    results['sequence_cm'] = np.array(cm_all)
-    results['category_cm'] = np.array(cm_c)
-    results['fpr'] = fpr
-    results['tpr'] = tpr
-    results['auc'] = roc_auc
+    # #results['sequence_cm'] = np.array(cm_all)
+    # #results['category_cm'] = np.array(cm_c)
+    # results['fpr'] = fpr
+    # results['tpr'] = tpr
+    # results['auc'] = roc_auc
 
-    return results
 
     # if(mode!='cross_subject'):
     #     acc_time_step =[]
@@ -196,7 +195,7 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     #     pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
     #     pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
     #     for k in range(1, X_test.shape[1]):
-    #         print(k)
+    #         #print(k)
     #         X_test_new = X_test[:,:k,:] 
     #         ys_test_new = ys_test[:,:k] 
 
@@ -217,18 +216,24 @@ def evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test,yt_test,
     #             pred_class = np.argmax(corr_arr)
     #             pred_class_arr.append(pred_class)
                 
-    #         category_acc = 100*(np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
+    #         category_acc = (np.sum(pred_class_arr == yt_test)/len(pred_class_arr))
     #         sequence_acc = np.mean(pred_seq_arr)
             
     #         acc_time_step.append(category_acc)
 
             
-    #         accuracy = category_acc/100
+    #         accuracy = category_acc
     #         num_trials = X_test_new.shape[0]
     #         time_min = (X_test_new.shape[0]* k*(2.1/126)*(1/60))
     #         itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     #         itr_time_step.append(itr)
 
+
+    #     results['variable_time_steps'] = np.array(acc_time_step)
+    #     results['ITR_time_steps'] = np.array(itr_time_step)
+    #     results['pred_time_step'] = pred_time_step
+
+    return results
 
     #         pred_time_step[:,k] = corr_all
             
@@ -271,28 +276,15 @@ def run_eeg2code(dataset,mode,model):
     filename = "./results/{}/{}/{}/{}_{}_run.txt".format(model,dataset,mode,model,mode)
     os.makedirs(os.path.dirname(filename), exist_ok=True)           
     run_f = open(filename, "w")
+
     if(mode=='cross_subject'):
         results = {}
-        with open('./datasets/{}.pickle'.format(dataset), 'rb') as handle:
-            data = pickle.load(handle)
-
-        X = data['X']
-        Ys = data['Ys']
-        Yt = data['Yt'] 
-
-        # Preprocessing data
-        low_cutoff = 2
-        high_cutoff = 30
-        sfreq = 240
-        X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
 
         if(dataset=='8_channel_cVEP'):
             n_subjects = 30
             n_classes = 20
-            if (model=='eeg2code'):
-                X = X[:,:1500,:,:]
-                Ys = Ys[:,:1500]
-                Yt = Yt[:,:1500]
+            n_channels = 8
+
             mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
             codes = mat['codes'].astype('float32')
             codebook = np.moveaxis(codes,1,0).astype('float32')
@@ -300,6 +292,7 @@ def run_eeg2code(dataset,mode,model):
         if(dataset=='256_channel_cVEP'):
             n_subjects = 5
             n_classes = 36
+            n_channels = 256
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
@@ -310,12 +303,24 @@ def run_eeg2code(dataset,mode,model):
         for i in range(0,n_subjects):
             results[i+1] = {}
 
-            X_new = X[i]
-            ys_new = Ys[i]
-            yt_new = Yt[i].flatten()
+            with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,i+1), 'rb') as handle:
+                data = pickle.load(handle)
+
+                X = data['X']
+                Ys = data['Ys']
+                Yt = data['Yt'] 
+
+            X_new = X
+            ys_new = Ys
+            yt_new = Yt.flatten()
             y_new= np.concatenate((yt_new[..., np.newaxis],ys_new), axis=1)
 
             X_train, X_val, y_train, y_val = train_test_split(X_new, y_new, test_size=0.2,stratify=y_new[:,0], shuffle= True)
+
+            del X_new
+
+            X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1],X_train.shape[2],X_train.shape[3]))
+            X_val = np.reshape(X_val, (X_val.shape[0]*X_val.shape[1],X_val.shape[2],X_val.shape[3]))
 
             X_train = standardize_data(X_train)
             X_val = standardize_data(X_val)
@@ -326,25 +331,29 @@ def run_eeg2code(dataset,mode,model):
             yt_train = y_train[:,0]
             yt_val = y_val[:,0]
 
+            ys_train = np.reshape(ys_train,(ys_train.shape[0]*ys_train.shape[1]))
+            ys_val = np.reshape(ys_val,(ys_val.shape[0]*ys_val.shape[1]))
 
-            X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
-            X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
-            Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
-
-            X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
-            X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
-            Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
-
-            model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched,X_val_epoched, Ys_val_epoched, n_subjects, n_classes, i, None)
+            model_eeg2code = build_eeg2code_model(n_channels)
+            model_eeg2code, model_history = train_eeg2code(model_eeg2code,dataset,mode,model, X_train[...,np.newaxis], ys_train,X_val[...,np.newaxis], ys_val, n_subjects, n_classes, i, None)
             results[i+1]['history'] = model_history
 
+            del X_train
             for j in range(0,n_subjects):
                 results[i+1][j+1] = {}
                 if(j!=i):
-                    X_test = X[j]
-                    X_test = standardize_data(X_test)
-                    ys_test = Ys[j]
-                    yt_test= Yt[j]
+
+                    with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,j+1), 'rb') as handle:
+                        data = pickle.load(handle)
+
+                    X = data['X']
+                    Ys = data['Ys']
+                    Yt = data['Yt'] 
+
+                    X_test = X
+                    X_test = standardize_epoched_data(X_test)
+                    ys_test = Ys
+                    yt_test= Yt
 
                 else:
                     X_test = X_val
@@ -356,28 +365,28 @@ def run_eeg2code(dataset,mode,model):
                     ys_test = ys_test[:216]
                     yt_test = yt_test[:216]
 
-                X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
+                results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
-                results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test_epoched,Ys_test_epoched, yt_test, n_subjects,n_classes,codebook)
+                del X_val, X_test
 
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']),file=run_f)
                 results[i+1][j+1]['category_accuracy'] = results_eval['category_accuracy']
                 results[i+1][j+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
                 results[i+1][j+1]['ITR'] = results_eval['ITR']
-                results[i+1][j+1]['category_cm'] =  results_eval['category_cm']
+                #results[i+1][j+1]['category_cm'] =  results_eval['category_cm']
                 results[i+1][j+1]['recall'] = results_eval['recall']
                 results[i+1][j+1]['precision'] = results_eval['precision']
                 results[i+1][j+1]['f1_score'] = results_eval['f1_score']
-                results[i+1][j+1]['fpr'] = results_eval['fpr']
-                results[i+1][j+1]['tpr'] = results_eval['tpr']
-                results[i+1][j+1]['auc'] = results_eval['auc']
+                #results[i+1][j+1]['fpr'] = results_eval['fpr']
+                #results[i+1][j+1]['tpr'] = results_eval['tpr']
+                #results[i+1][j+1]['auc'] = results_eval['auc']
                 # if(mode!='cross_subject'):
-                #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                #results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                #results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']   
+                #results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
                 #     results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                #     results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
-                    
-                #     results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
+
                 #     results[i+1][j+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
@@ -385,112 +394,481 @@ def run_eeg2code(dataset,mode,model):
         with open(filename, 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    elif(mode=='within_subject' or mode=='loso_subject'):
+    elif(dataset=='8_channel_cVEP'):
         results = {}
-        if(dataset=='8_channel_cVEP'):
-            n_subjects = 30
-            n_classes = 20
-            mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
-            codes = mat['codes'].astype('float32')
-            codebook = np.moveaxis(codes,1,0).astype('float32')
+        n_subjects = 30
+        n_classes = 20
+        n_channels = 8
+        mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
+        codes = mat['codes'].astype('float32')
+        codebook = np.moveaxis(codes,1,0).astype('float32')
 
-        if(dataset=='256_channel_cVEP'):
-            n_subjects = 5
-            n_classes = 36
-            codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
-            codes = np.moveaxis(codebook,1,0)
+        if(mode=='within_subject'):
+            subjects = np.arange(1,31)
+            for i in range(0,n_subjects):
+                results[i+1] = {}
+                with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,i+1), 'rb') as handle:
+                    data = pickle.load(handle)
 
-        for i in range(0,n_subjects):
-            results[i+1] = {}
-            for fold in range(0,15):
-                results[i+1][fold+1] = {}
-                
-                data = load_data(mode,dataset,model,i,fold)
-                X_train = data['X_train']
-                X_val = data['X_val']
-                X_test = data['X_test']
+                X = data['X']
+                Ys = data['Ys']
+                Yt = data['Yt'] 
 
-                ys_train = data['ys_train']
-                ys_val = data['ys_val']
-                ys_test = data['ys_test']
+                X_cv = np.array([]).reshape(0,100,126,60,8)
+                Ys_cv = np.array([]).reshape(0,100,126)
+                Yt_cv = np.array([]).reshape(0,100)
+                for f in range(0,15):
+                    X_fold = X[f::15]
+                    Ys_fold = Ys[f::15]
+                    Yt_fold = Yt[f::15]
 
-                yt_train = data['yt_train']
-                yt_val = data['yt_val']
-                yt_test = data['yt_test']
 
-                yt_test = np.argmax(yt_test,axis=1)
-                if (dataset == '256_channel_cVEP'):
-                    X_test = X_test[:216]
-                    ys_test = ys_test[:216]
-                    yt_test = yt_test[:216]
+                    X_cv = np.vstack((X_cv, X_fold[np.newaxis,...]))
+                    Ys_cv = np.vstack((Ys_cv, Ys_fold[np.newaxis,...]))
+                    Yt_cv = np.vstack((Yt_cv, Yt_fold[np.newaxis,...]))
 
-                X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
-
-                if(mode == 'within_subject'):
-                    X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
-
-                    X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
-                    Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
-
-                    X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
-                    X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
-                    Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
-
-                    model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched, X_val_epoched, Ys_val_epoched,n_subjects, n_classes, i, fold)
-                    results[i+1][fold+1]['history'] = model_history
             
+                for fold in range(0,15):
+                    results[i+1][fold+1] = {}
+                    #print(i+1,fold+1)
+                    data = {}
+                    #print("Training on subject {} fold {} ".format(i+1,fold+1))
+                    X_train_f = np.concatenate((X_cv[0:fold], X_cv[fold+1:15]))
+                    Ys_train_f = np.concatenate((Ys_cv[0:fold], Ys_cv[fold+1:15]))
+                    Yt_train_f = np.concatenate((Yt_cv[0:fold], Yt_cv[fold+1:15]))
 
-                else:
-                    X_test_epoched, Ys_test_epoched = epoch_data(X_test, ys_test, n_subjects, n_classes)
-                    if(fold==0):
-                        X_train_epoched, Ys_train_epoched = epoch_data(X_train, ys_train, n_subjects, n_classes)
+                    X_train_folds = np.reshape(X_train_f, (X_train_f.shape[0]*X_train_f.shape[1],126,60,8))
+                    Ys_train_folds = np.reshape(Ys_train_f, (X_train_f.shape[0]*X_train_f.shape[1],126))
+                    Yt_train_folds = np.reshape(Yt_train_f, (X_train_f.shape[0]*X_train_f.shape[1]))
 
-                        X_train_epoched = np.reshape(X_train_epoched,(int(X_train_epoched.shape[0]*X_train_epoched.shape[1]),X_train_epoched.shape[2],X_train_epoched.shape[3]))[..., np.newaxis]
-                        Ys_train_epoched = np.reshape(Ys_train_epoched, (int(Ys_train_epoched.shape[0]*Ys_train_epoched.shape[1]),1))
+                    X_test = X_cv[fold:fold+1][0]
+                    Ys_test = Ys_cv[fold:fold+1][0]
+                    Yt_test = Yt_cv[fold:fold+1][0]
 
-                        X_val_epoched, Ys_val_epoched = epoch_data(X_val, ys_val, n_subjects, n_classes)
-                        X_val_epoched = np.reshape(X_val_epoched,(X_val_epoched.shape[0]*X_val_epoched.shape[1],X_val_epoched.shape[2],X_val_epoched.shape[3]))[..., np.newaxis]
-                        Ys_val_epoched = np.reshape(Ys_val_epoched, (Ys_val_epoched.shape[0]*Ys_val_epoched.shape[1],1))
 
-                        model_eeg2code, model_history = train_eeg2code(dataset,mode,model, X_train_epoched, Ys_train_epoched, X_val_epoched, Ys_val_epoched,n_subjects, n_classes, i, fold)
+                    Y_train_folds = np.concatenate((Yt_train_folds[..., np.newaxis],Ys_train_folds), axis=1)
+
+                    X_train, X_val, y_train, y_val = train_test_split(X_train_folds, Y_train_folds, test_size=0.2, 
+                                                                      stratify=Yt_train_folds, shuffle= True)
+
+                    del X_train_f, X_train_folds
+                    
+                    X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1],X_train.shape[2],X_train.shape[3]))
+                    X_val = np.reshape(X_val, (X_val.shape[0]*X_val.shape[1],X_val.shape[2],X_val.shape[3]))
+
+                    X_train = standardize_data(X_train)
+                    X_val = standardize_data(X_val)
+                    X_test = standardize_epoched_data(X_test)
+
+                    ys_train = y_train[:,1:]
+                    ys_val = y_val[:,1:]
+
+                    yt_train = y_train[:,0]
+                    yt_val = y_val[:,0]
+
+                    ys_train = np.reshape(ys_train,(ys_train.shape[0]*ys_train.shape[1]))
+                    ys_val = np.reshape(ys_val,(ys_val.shape[0]*ys_val.shape[1]))
+                    
+                    model_eeg2code = build_eeg2code_model(n_channels)
+                    model_eeg2code, model_history = train_eeg2code(model_eeg2code,dataset,mode,model, X_train[...,np.newaxis], ys_train,X_val[...,np.newaxis], ys_val, n_subjects, n_classes, i, fold)
+                    results[i+1][fold+1]['history'] = model_history
+
+                    results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,Ys_test, Yt_test, n_subjects,n_classes,codebook)
+                
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
+
+                    results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
+                    results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
+                    results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                    #results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                    results[i+1][fold+1]['recall'] = results_eval['recall']
+                    results[i+1][fold+1]['precision'] = results_eval['precision']
+                    results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                   # results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                    #results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                    #results[i+1][fold+1]['auc'] = results_eval['auc']
+                    #results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']   
+                    #results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+
+                    del X_train, X_val, X_test
+
+                del X_cv
+
+            filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'wb') as handle:
+                pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        elif(mode=='loso_subject'):
+
+            subjects = np.arange(1,31)
+            for i in range(0,n_subjects):
+                results[i+1] = {}
+
+                for f in range(0,15):
+                    X = np.array([]).reshape(0,100,126,60,8)
+                    Ys = np.array([]).reshape(0,100,126)
+                    Yt = np.array([]).reshape(0,100,1)
+                    for j in range(0,n_subjects):
+                        if(j!=i):
+                            with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,j+1), 'rb') as handle:
+                                data = pickle.load(handle)
+
+                            X_subj = data['X'][f::15]
+                            Ys_subj = data['Ys'][f::15]
+                            Yt_subj = data['Yt'][f::15][...,np.newaxis]
+
+                            X = np.vstack((X, X_subj[np.newaxis,...]))
+                            Ys = np.vstack((Ys, Ys_subj[np.newaxis,...]))
+                            Yt = np.vstack((Yt, Yt_subj[np.newaxis,...]))
+
+                    #print("Leaving out subject ",i+1)
+                    X_new = np.reshape(X, (X.shape[0]*X.shape[1],X.shape[2],X.shape[3],X.shape[4]))
+                    Ys_new = np.reshape(Ys, (Ys.shape[0]*Ys.shape[1],Ys.shape[2]))
+                    Yt_new = np.reshape(Yt, (Yt.shape[0]*Yt.shape[1],Yt.shape[2]))         
+
+                    Y_new = np.concatenate((Yt_new,Ys_new), axis=1)
+
+                    X_train, X_val, y_train, y_val = train_test_split(X_new, Y_new, test_size=0.2, stratify=Y_new[:,0], shuffle= True)
+
+                    del X_new
+
+                    X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1],X_train.shape[2],X_train.shape[3]))
+                    X_val = np.reshape(X_val, (X_val.shape[0]*X_val.shape[1],X_val.shape[2],X_val.shape[3]))
+
+                    X_train = standardize_data(X_train)
+                    X_val = standardize_data(X_val)
+
+                    ys_train = y_train[:,1:]
+                    ys_val = y_val[:,1:]
+
+                    yt_train = y_train[:,0]
+                    yt_val = y_val[:,0]
+
+                    ys_train = np.reshape(ys_train,(ys_train.shape[0]*ys_train.shape[1]))
+                    ys_val = np.reshape(ys_val,(ys_val.shape[0]*ys_val.shape[1]))
+
+                    if(f==0):
+                        model_eeg2code = build_eeg2code_model(n_channels)
+                    
+                        model_eeg2code, model_history = train_eeg2code(model_eeg2code, dataset,mode,model, X_train[...,np.newaxis], ys_train, X_val[...,np.newaxis], ys_val,n_subjects, n_classes, i, None)
+                        print("Trained eeg2code left out subject {}, batch {}".format(i+1,f+1))
                         results[i+1]['history'] = model_history
 
-                results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test_epoched,Ys_test_epoched, yt_test, n_subjects,n_classes,codebook)
+                    del X_train, X_val
 
-                print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
-                print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
-                results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
-                results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                results[i+1][fold+1]['ITR'] = results_eval['ITR']
-                results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
-                results[i+1][fold+1]['recall'] = results_eval['recall']
-                results[i+1][fold+1]['precision'] = results_eval['precision']
-                results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
-                results[i+1][fold+1]['fpr'] = results_eval['fpr']
-                results[i+1][fold+1]['tpr'] = results_eval['tpr']
-                results[i+1][fold+1]['auc'] = results_eval['auc']
 
-                # if(mode!='cross_subject'):
-                #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
-                #     results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                #     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
-                    
-                #     results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
-                #     results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
+                with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,i+1), 'rb') as handle:
+                    data = pickle.load(handle)
 
-        filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'wb') as handle:
-            pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                X = data['X']
+                Ys = data['Ys']
+                Yt = data['Yt'] 
+
+                X_cv = np.array([]).reshape(0,100,126,60,8)
+                Ys_cv = np.array([]).reshape(0,100,126)
+                Yt_cv = np.array([]).reshape(0,100)
+                for f in range(0,15):
+                    X_fold = X[f::15]
+                    Ys_fold = Ys[f::15]
+                    Yt_fold = Yt[f::15]
+
+                    X_cv = np.vstack((X_cv, X_fold[np.newaxis,...]))
+                    Ys_cv = np.vstack((Ys_cv, Ys_fold[np.newaxis,...]))
+                    Yt_cv = np.vstack((Yt_cv, Yt_fold[np.newaxis,...]))
+
+                for fold in range(0,15):
+                    results[i+1][fold+1] = {}
+                    #print(i+1,fold+1)
+
+                    X_test = X_cv[fold:fold+1][0]
+                    Ys_test = Ys_cv[fold:fold+1][0]
+                    Yt_test = Yt_cv[fold:fold+1][0]
+
+                    X_test = standardize_epoched_data(X_test)
+
+                    results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,Ys_test, Yt_test, n_subjects,n_classes,codebook)
+
+
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
+                    results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
+                    results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
+                    results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                    #results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                    results[i+1][fold+1]['recall'] = results_eval['recall']
+                    results[i+1][fold+1]['precision'] = results_eval['precision']
+                    results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                   # results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                    #results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                    #results[i+1][fold+1]['auc'] = results_eval['auc']
+                    #results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']   
+                    #results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+
+                del X_test, X_cv
+
+            filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'wb') as handle:
+                pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        else:
+            warnings.warn("Unsupported mode")
+
+    elif(dataset=='256_channel_cVEP'):
+        results = {}
+        n_subjects = 5
+        n_classes = 36
+        n_channels = 256
+        codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
+        codes = np.moveaxis(codebook,1,0)
+
+        if(mode=='within_subject'):
+            for i in range(0,n_subjects):
+                results[i+1] = {}
+                with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,i+1), 'rb') as handle:
+                    data = pickle.load(handle)
+
+                X = data['X']
+                Ys = data['Ys']
+                Yt = data['Yt'] 
+
+                foldn = 15
+                for fold in range(0,foldn):
+                    results[i+1][fold+1] = {}
+                    data = {}
+                    #print("Training on subject {} fold {} ".format(i+1,fold+1))
+
+                    X_train_f = X
+                    Ys_train_f = Ys
+                    Yt_train_f = Yt
+
+                    X_train_f1 = X_train_f[:216]
+                    X_train_f2 = X_train_f[216:]
+                    X_trainf3 = np.concatenate((X_train_f1,X_train_f2), axis=-1)
+            
+                    Ys_train_f1 = Ys_train_f[:216]
+                    Ys_train_f2 = Ys_train_f[216:]
+                    Ys_train_f3 = np.concatenate((Ys_train_f1,Ys_train_f2), axis=-1)
+
+                    Yt_train_f1 = Yt_train_f[:216]
+                    Yt_train_f2 = Yt_train_f[216:]
+                    Yt_train_f3 = np.concatenate((Yt_train_f1,Yt_train_f2), axis=-1)
+
+                    Y_train_f = np.concatenate((Yt_train_f3,Ys_train_f3), axis=1)
+
+                    del X_train_f1, X_train_f2, X_train_f
+
+                    X_train_fold, X_val_fold, y_train_fold, y_val_fold  = train_test_split(X_trainf3, Y_train_f, 
+                                                                                            test_size=0.35, 
+                                                                                            stratify=Y_train_f[:,0], 
+                                                                                            shuffle= True)
+
+                    X_val_fold, X_test_fold, y_val_fold, y_test_fold = train_test_split(X_val_fold, y_val_fold, 
+                                                                                            test_size=0.5, 
+                                                                                            stratify=y_val_fold[:,0], 
+                                                                                            shuffle= True)
+
+                    X_train1 = X_train_fold[:,:,:,:256]
+                    X_train2 = X_train_fold[:,:,:,256:512]
+
+                    X_val1 = X_val_fold[:,:,:,:256]
+                    X_val2 = X_val_fold[:,:,:,256:512]
+
+                    X_test1 = X_test_fold[:,:,:,:256]
+                    X_test2 = X_test_fold[:,:,:,256:512]
+
+                    X_train = np.concatenate((X_train1,X_train2), axis=0)
+                    X_val = np.concatenate((X_val1,X_val2), axis=0)
+                    X_test = np.concatenate((X_test1,X_test2), axis=0)
+
+                    del X_test1, X_test2, X_train1, X_train2, X_val1, X_val2, X_train_fold, X_val_fold, X_test_fold, X_trainf3
+
+                    X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1],X_train.shape[2],X_train.shape[3]))
+                    X_val = np.reshape(X_val, (X_val.shape[0]*X_val.shape[1],X_val.shape[2],X_val.shape[3]))
+
+                    X_train = standardize_data(X_train)
+                    X_val = standardize_data(X_val)
+                    X_test = standardize_epoched_data(X_test)
+
+                    yt_train1 = y_train_fold[:,0]
+                    yt_train2 = y_train_fold[:,1]
+                    ys_train1 = y_train_fold[:,2:128]
+                    ys_train2 = y_train_fold[:,128:254]
+
+                    yt_test1 = y_test_fold[:,0]
+                    yt_test2 = y_test_fold[:,1]
+                    ys_test1 = y_test_fold[:,2:128]
+                    ys_test2 = y_test_fold[:,128:254]
+
+                    yt_val1 = y_val_fold[:,0]
+                    yt_val2 = y_val_fold[:,1]
+                    ys_val1 = y_val_fold[:,2:128]
+                    ys_val2 = y_val_fold[:,128:254]
+
+                    ys_train = np.concatenate((ys_train1,ys_train2), axis=0)
+                    yt_train = np.concatenate((yt_train1,yt_train2), axis=0)
+
+                    ys_test = np.concatenate((ys_test1,ys_test2), axis=0)
+                    yt_test = np.concatenate((yt_test1,yt_test2), axis=0)
+
+                    ys_val = np.concatenate((ys_val1,ys_val2), axis=0)
+                    yt_val = np.concatenate((yt_val1,yt_val2), axis=0)
+
+                    ys_train = np.reshape(ys_train,(ys_train.shape[0]*ys_train.shape[1]))
+                    ys_val = np.reshape(ys_val,(ys_val.shape[0]*ys_val.shape[1]))
+
+                    model_eeg2code = build_eeg2code_model(n_channels)
+                    model_eeg2code, model_history = train_eeg2code(model_eeg2code,dataset,mode,model, X_train[...,np.newaxis], ys_train, X_val[...,np.newaxis], ys_val,n_subjects, n_classes, i, None)
+                    results[i+1]['history'] = model_history
+
+                    results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
+
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
+                    results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
+                    results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
+                    results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                   # results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                    results[i+1][fold+1]['recall'] = results_eval['recall']
+                    results[i+1][fold+1]['precision'] = results_eval['precision']
+                    results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                    #results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                    #results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                    #results[i+1][fold+1]['auc'] = results_eval['auc']
+                    #results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']   
+                    #results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+
+                    del X_train, X_val, X_test
+
+
+            filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'wb') as handle:
+                pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+        elif(mode=='loso_subject'):
+            for i in range(0,n_subjects):
+                results[i+1] = {}
+                X = np.array([]).reshape(0,216,126,60,256)
+                Ys = np.array([]).reshape(0,216,126)
+                Yt = np.array([]).reshape(0,216,1)
+
+                for j in range(0,n_subjects):
+                    if(j!=i):
+                        with open('./datasets/epoched_data/{}_epoched_S{}.pickle'.format(dataset,j+1), 'rb') as handle:
+                            data = pickle.load(handle)
+                        
+                        X_subj = data['X'][:216]
+                        Ys_subj = data['Ys'][:216]
+                        Yt_subj = data['Yt'][:216]
+
+                        X = np.vstack((X, X_subj[np.newaxis,...]))
+                        Ys = np.vstack((Ys, Ys_subj[np.newaxis,...]))
+                        Yt = np.vstack((Yt, Yt_subj[np.newaxis,...]))
+
+                #print("Leaving out subject ",i+1)
+                X_new = np.reshape(X, (X.shape[0]*X.shape[1],X.shape[2],X.shape[3],X.shape[4]))
+                Ys_new = np.reshape(Ys, (Ys.shape[0]*Ys.shape[1],Ys.shape[2]))
+                Yt_new = np.reshape(Yt, (Yt.shape[0]*Yt.shape[1],Yt.shape[2]))   
+
+                Y_new = np.concatenate((Yt_new,Ys_new), axis=1)
+
+                X_train, X_val, y_train, y_val = train_test_split(X_new, Y_new, test_size=0.2, 
+                                                                  stratify=Y_new[:,0], shuffle= True)
+
+                del X_new
+                X_train = np.reshape(X_train, (X_train.shape[0]*X_train.shape[1],X_train.shape[2],X_train.shape[3]))
+                X_val = np.reshape(X_val, (X_val.shape[0]*X_val.shape[1],X_val.shape[2],X_val.shape[3]))
+
+                X_train = standardize_data(X_train)
+                X_val = standardize_data(X_val)
+
+                ys_train = y_train[:,1:]
+                ys_val = y_val[:,1:]
+
+                yt_train = y_train[:,0]
+                yt_val = y_val[:,0]
+
+                ys_train = np.reshape(ys_train,(ys_train.shape[0]*ys_train.shape[1]))
+                ys_val = np.reshape(ys_val,(ys_val.shape[0]*ys_val.shape[1]))
+
+                if(j==0):
+                    model_eeg2code = build_eeg2code_model(n_channels)
+
+                model_eeg2code, model_history = train_eeg2code(model_eeg2code,dataset,mode,model, X_train[...,np.newaxis], ys_train, X_val[...,np.newaxis], ys_val,n_subjects, n_classes, i, None)
+                results[i+1]['history'] = model_history
+
+                del X_train, X_val
+                
+                with open('./datasets/{}_epoched_S{}.pickle'.format(dataset,i+1), 'rb') as handle:
+                    data = pickle.load(handle)
+
+                X = data['X'][:216]
+                Ys = data['Ys'][:216]
+                Yt = data['Yt'][:216] 
+
+                for f in range(0,15):
+                    results[i+1][fold+1] = {}
+                    X_fold = X
+                    Ys_fold = Ys
+                    Yt_fold = Yt
+
+                    Y_fold = np.concatenate((Yt_fold,Ys_fold), axis=1)
+
+                    X_test_fold, _, y_test_fold, _ = train_test_split(X_fold, Y_fold, test_size=0.8, 
+                                                                      stratify=Y_fold[:,0], shuffle= True)
+                    X_test = standardize_data(X_test_fold)
+
+                    yt_test = y_test_fold[:,0]
+                    ys_test = y_test_fold[:,1:]
+
+                    X_test = standardize_epoched_data(X_test)
+
+                    results_eval = evaluate_eeg2code(model_eeg2code, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
+
+                    del X_fold, X_test_fold, X_test
+
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
+                    print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']),file=run_f)
+                    results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
+                    results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
+                    results[i+1][fold+1]['ITR'] = results_eval['ITR']
+                    #results[i+1][fold+1]['category_cm'] =  results_eval['category_cm']
+                    results[i+1][fold+1]['recall'] = results_eval['recall']
+                    results[i+1][fold+1]['precision'] = results_eval['precision']
+                    results[i+1][fold+1]['f1_score'] = results_eval['f1_score']
+                    #results[i+1][fold+1]['fpr'] = results_eval['fpr']
+                    #results[i+1][fold+1]['tpr'] = results_eval['tpr']
+                    #results[i+1][fold+1]['auc'] = results_eval['auc']
+                    #results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']   
+                    #results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+
+
+            filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'wb') as handle:
+                pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+        else:
+            warnings.warn("Unsupported mode")
 
     else:
-        warnings.warn("Unsupported mode")
+        warnings.warn("Unsupported dataset")
 
-datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
+
+datasets = ['8_channel_cVEP','256_channel_cVEP']
+modes = ['loso_subject','cross_subject'] #'within_subject'
 model = "eeg2code"
 
-for dataset in datasets:
-    for mode in modes: 
+for mode in modes:
+    for dataset in datasets: 
         print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
         run_eeg2code(dataset, mode, model)

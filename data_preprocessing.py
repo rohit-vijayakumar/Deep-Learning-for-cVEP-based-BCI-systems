@@ -43,6 +43,16 @@ def standardize_data(X):
 
     return standardized_data
 
+def standardize_epoched_data(X):
+    scaler = StandardScaler()
+    standardized_data = np.zeros((X.shape))
+    for trial in range(0,X.shape[0]):
+        for ch in range(0,X.shape[3]):
+            data = scaler.fit_transform(X[trial,:,:,ch])
+            standardized_data[trial,:,:,ch] = data
+
+    return standardized_data
+
 def bandpass_filter_data(X, lfreq, hfreq, sfreq):
     trial_time = 2.1
 
@@ -92,13 +102,13 @@ def remove_bad_channels(X):
     for subj in range(0,X.shape[0]):
         avg_trials = np.average(X[subj],axis=0)
         std = np.std(avg_trials,axis=0)
-        for i in range(0,X.shape[3]):
+        for i in range(0,X.shape[2]):
             if(std[i]>3):
-                X[:,:,:,i] = 0
+                X[:,:,i] = 0
                 rejected_chans.append(i)
 
     accepted_chans = np.array([])
-    for i in range(0,X.shape[3]):
+    for i in range(0,X.shape[2]):
         if i not in rejected_chans:
             accepted_chans = np.append(accepted_chans,i)
 
@@ -106,26 +116,25 @@ def remove_bad_channels(X):
     
     return X, rejected_chans
 
-def augment_data_chan(X, Ys, Yt):
+# def augment_data_chan(X, Ys, Yt):
+#     mu, sigma = 0, 1
+#     noise = np.random.normal(mu, sigma, [X.shape[0],X.shape[1], X.shape[2], X.shape[3]]) 
+
+#     X = np.concatenate((X,X+noise),axis=-1)
+
+#     Ys = np.concatenate((Ys,Ys),axis=-1)
+#     Yt = Yt[...,np.newaxis]
+#     Yt = np.concatenate((Yt,Yt),axis=-1)
+
+#     return X, Ys, Yt
+
+def augment_data(X, Ys, Yt):
     mu, sigma = 0, 1
-    noise = np.random.normal(mu, sigma, [X.shape[0],X.shape[1], X.shape[2], X.shape[3]]) 
+    noise = np.random.normal(mu, sigma, [X.shape[0],X.shape[1], X.shape[2]]) 
 
-    X = np.concatenate((X,X+noise),axis=-1)
+    X = np.concatenate((X,X+noise),axis=0)
 
-    Ys = np.concatenate((Ys,Ys),axis=-1)
-    Yt = Yt[...,np.newaxis]
-    Yt = np.concatenate((Yt,Yt),axis=-1)
-
-    return X, Ys, Yt
-
-def augment_data_trial(X, Ys, Yt):
-    mu, sigma = 0, 1
-    noise = np.random.normal(mu, sigma, [X.shape[0],X.shape[1], X.shape[2], X.shape[3]]) 
-
-    X = np.concatenate((X,X+noise),axis=1)
-
-    Ys = np.concatenate((Ys,Ys),axis=1)
-    Yt = Yt[...,np.newaxis]
-    Yt = np.concatenate((Yt,Yt),axis=1)
+    Ys = np.concatenate((Ys,Ys),axis=0)
+    Yt = np.concatenate((Yt,Yt),axis=0)
 
     return X, Ys, Yt

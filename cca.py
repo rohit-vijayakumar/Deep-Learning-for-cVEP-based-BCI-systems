@@ -177,44 +177,44 @@ def evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weight
     results['tpr'] = tpr
     results['auc'] = roc_auc
 
-    # if(mode!='cross_subject'):
-    #     acc_time_step =[]
-    #     acc_time_step_r =[]
-    #     itr_time_step = []
-    #     pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-    #     pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-    #     for k in range(0, X_test.shape[1]):
-    #         X_test_new = X_test[:,:k,:] 
+    if(mode!='cross_subject'):
+        acc_time_step =[]
+        acc_time_step_r =[]
+        itr_time_step = []
+        pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+        pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+        for k in range(0, X_test.shape[1]):
+            X_test_new = X_test[:,:k,:] 
             
-    #         resampled_X_test = np.moveaxis(X_test_new, 2,0)
-    #         resampled_X_test  = np.moveaxis(resampled_X_test, 2,1)
+            resampled_X_test = np.moveaxis(X_test_new, 2,0)
+            resampled_X_test  = np.moveaxis(resampled_X_test, 2,1)
 
 
-    #         X_filtered = np.zeros((resampled_X_test.shape[1], yt_test.size))
-    #         for i_trial in range(yt_test.size):
-    #             X_filtered[:, i_trial] = np.dot(w, resampled_X_test[:, :, i_trial])
+            X_filtered = np.zeros((resampled_X_test.shape[1], yt_test.size))
+            for i_trial in range(yt_test.size):
+                X_filtered[:, i_trial] = np.dot(w, resampled_X_test[:, :, i_trial])
 
-    #         prediction = np.zeros(yt_test.size)
-    #         rho_all = np.zeros((yt_test.size,n_classes))
-    #         for i_trial in range(yt_test.size):
-    #             T_new = T.T
-    #             T_new = T_new[:,:k]
-    #             rho = np.corrcoef(X_filtered[:, i_trial], T_new)[0, 1:]
-    #             prediction[i_trial] = np.argmax(rho)
-    #             rho_all[i_trial] = rho
+            prediction = np.zeros(yt_test.size)
+            rho_all = np.zeros((yt_test.size,n_classes))
+            for i_trial in range(yt_test.size):
+                T_new = T.T
+                T_new = T_new[:,:k]
+                rho = np.corrcoef(X_filtered[:, i_trial], T_new)[0, 1:]
+                prediction[i_trial] = np.argmax(rho)
+                rho_all[i_trial] = rho
                 
-    #         acc = 100*(np.sum(prediction == yt_test)/len(prediction))
-    #         acc_time_step.append(acc)
+            acc = (np.sum(prediction == yt_test)/len(prediction))
+            acc_time_step.append(acc)
 
             
-    #         accuracy = acc/100
-    #         num_trials = X_test_new.shape[0]
-    #         time_min = (X_test_new.shape[0]* k*(2.1/126)*(1/60))
-    #         itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
-    #         itr_time_step.append(itr)
+            accuracy = acc
+            num_trials = X_test_new.shape[0]
+            time_min = (X_test_new.shape[0]* k*(2.1/126)*(1/60))
+            itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
+            itr_time_step.append(itr)
 
 
-    #         pred_time_step[:,k] = rho_all
+            pred_time_step[:,k] = rho_all
             
     #     for k in range(0, X_test.shape[1]):
     #         X_test_new = X_test.copy()
@@ -245,12 +245,12 @@ def evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes,weight
     #         pred_time_step_r[:,k] = rho_all
         
 
-    #     results['variable_time_steps'] = np.array(acc_time_step)
-    #     results['variable_time_steps_r'] = np.array(acc_time_step_r)
-    #     results['ITR_time_steps'] = np.array(itr_time_step)
+        results['variable_time_steps'] = np.array(acc_time_step)
+        #results['variable_time_steps_r'] = np.array(acc_time_step_r)
+        results['ITR_time_steps'] = np.array(itr_time_step)
 
-    #     results['pred_time_step'] = pred_time_step
-    #     results['pred_time_step_r'] = pred_time_step_r
+        results['pred_time_step'] = pred_time_step
+        #results['pred_time_step_r'] = pred_time_step_r
 
     return results
 
@@ -344,12 +344,12 @@ def run_cca(dataset,mode,model):
                 results[i+1][j+1]['fpr'] = results_eval['fpr']
                 results[i+1][j+1]['tpr'] = results_eval['tpr']
                 results[i+1][j+1]['auc'] = results_eval['auc']
-                # if(mode!='cross_subject'):
-                #     results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                if(mode!='cross_subject'):
+                    results[i+1][j+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 #     results[i+1][j+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                #     results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                #results[i+1][j+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
 
-                #     results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
+                #results[i+1][j+1]['pred_time_step'] = results_eval['pred_time_step']
                 #     results[i+1][j+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
@@ -426,11 +426,11 @@ def run_cca(dataset,mode,model):
                     pickle.dump(weights, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 
                 #results[i+1][fold+1]['category_accuracy'] = results_eval['category_accuracy']
-                # results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
                 # results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                # results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
 
-                # results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+                results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
                 # results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
                     
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)

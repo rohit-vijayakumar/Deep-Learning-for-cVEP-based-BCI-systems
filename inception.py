@@ -162,23 +162,10 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
     itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
     results['ITR'] = np.array(itr)
 
-    pred_s, pred_c = model_inception.predict(X_test)
-    y_acc_all = []
-    cm_all = np.zeros((len(pred_s),2,2))
-    for j in range(len(pred_s)):
-        pred_seq = pred_s[j]
-        y_true = ys_test[j]
-        y_pred = pred_seq>=0.5
-        y_pred = y_pred.astype('int')
-        y_acc = accuracy_score(y_true, y_pred)
-        
-        cm_s = confusion_matrix(y_true, y_pred,labels=[0,1])
-        cm_all[j] = cm_s
-        y_acc_all.append(y_acc)
+    pred_c = model_inception.predict(X_test)
     
     pred_c_all = np.argmax(pred_c, axis=1)
     cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c_all)
-    y_accuracy = np.mean(y_acc_all)
 
     precision = precision_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
     recall = recall_score(np.argmax(yt_test,axis=1), pred_c_all, average='weighted')
@@ -191,12 +178,10 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
         fpr[n], tpr[n], _ = roc_curve(yt_test[:, n], pred_c[:, n])
         roc_auc[n] = auc(fpr[n], tpr[n])
 
-    results['sequence_accuracy'] = np.array(y_accuracy)
     results['category_cm'] = np.array(cm_c)
     results['recall'] = np.array(recall)
     results['precision'] = np.array(precision)
     results['f1_score'] = np.array(f1)
-    results['sequence_cm'] = np.array(cm_all)
     results['category_cm'] = np.array(cm_c)
     results['fpr'] = fpr
     results['tpr'] = tpr
@@ -450,8 +435,8 @@ def run_inception(dataset,mode,model):
     else:
         warnings.warn("Unsupported mode")
 
-datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
+datasets = ['8_channel_cVEP','256_channel_cVEP']
+modes = ['within_subject','cross_subject','loso_subject']
 # datasets = ['8_channel_cVEP','256_channel_cVEP']
 # modes = ['within_subject','loso_subject','cross_subject']
 model = "inception"
