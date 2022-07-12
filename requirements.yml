@@ -1,0 +1,10 @@
+name: deep_learning_for_cvep_bci
+dependencies:
+- tensorflow-gpu=2.5.0
+- numpy=1.19.5
+- pandas=1.3.4
+- scipy = 1.7.3
+- pickle=4.0
+- scikit-learn=1.01
+- matplotlib=3.9.7
+- seaborn=0.11.2
