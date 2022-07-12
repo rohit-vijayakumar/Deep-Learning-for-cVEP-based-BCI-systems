@@ -1,0 +1,21 @@
+\begin{table}
+	\begin{center}
+		\begin{tabular}{|l|l|l|l|l|l|l|}
+			\hline
+			Subject & category accuracy & sequence accuracy & precision & recall & f1 score & ITR \\
+			\hline
+			1 & 0.704 & 0.688 & 0.713 & 0.704 & 0.678 & 79.458 \\
+			\hline
+			2 & 0.755 & 0.693 & 0.763 & 0.755 & 0.734 & 88.903 \\
+			\hline
+			3 & 0.245 & 0.580 & 0.232 & 0.245 & 0.218 & 14.158 \\
+			\hline
+			4 & 0.829 & 0.725 & 0.858 & 0.829 & 0.818 & 104.049 \\
+			\hline
+			5 & 0.343 & 0.620 & 0.316 & 0.343 & 0.306 & 25.548 \\
+			\hline
+		\end{tabular}
+	\end{center}
+	\caption{LOSO results of dual-objective CNN on 256-channel dataset}
+	\label{dual_objective_cnn_loso_subject_256_channel_cVEP}
+\end{table}

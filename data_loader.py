@@ -16,8 +16,12 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from keras.utils.np_utils import to_categorical
 
-def epoch_data(X, Ys, Yt, n_subjects, n_classes):
+def epoch_data(X, Ys, Yt, n_subjects, n_classes, dataset):
     
+    if(dataset=='8_channel_cVEP'):
+        n_rep = 1890
+    else:
+        n_rep = 252
     n_samples = 60 #150ms
     n_steps = 4
     n_trials = int(X.shape[1]/n_steps)
@@ -25,13 +29,11 @@ def epoch_data(X, Ys, Yt, n_subjects, n_classes):
     data_X_trial = np.array([]).reshape(0,n_trials,n_samples,X.shape[2])
     for trial in range(X.shape[0]):
         data_X = np.array([]).reshape(0,n_samples,X.shape[2])
-        for bit in range(Ys.shape[1]):
+        for bit in range(n_rep):
             y_bit = Ys[trial][bit]
             x_window = np.roll(X[trial], -bit*4, axis=0)[:n_samples]
-            data_X = np.vstack((data_X, x_window[np.newaxis,...]))
-            
+            data_X = np.vstack((data_X, x_window[np.newaxis,...]))    
         data_X_trial = np.vstack((data_X_trial, data_X[np.newaxis,...]))
-    
     return data_X_trial
 
 def load_raw_dataset(data_path, label_path, sfreq, dfreq, num_chans):
@@ -257,26 +259,28 @@ def load_preprocessed_data_cv(dataset, mode, model):
         high_cutoff = 30
         sfreq = 240
         X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
+
         if (model == 'eeg2code'):
             n_classes = 20
 
-            # X = X[:,:1500,:,:]
-            # Yt = Yt[:,:1500]
-            # Ys = Ys[:,:1500]
+            X = X
+            Yt = Yt
+            Ys = Ys
+            Ys = np.tile(Ys, (1,1,15))
 
-            # data = {}
-            # for subj in range(0,n_subjects):
-            #     X_epoched = epoch_data(X[subj], Ys[subj], Yt[subj], n_subjects, n_classes)
-            #     data ['X'] = X_epoched
-            #     data['Ys'] = Ys[subj]
-            #     data['Yt'] = Yt[subj]
+            data = {}
+            for subj in range(0,n_subjects):
+                X_epoched = epoch_data(X[subj], Ys[subj], Yt[subj], n_subjects, n_classes, dataset)
+                data ['X'] = X_epoched
+                data['Ys'] = Ys[subj]
+                data['Yt'] = Yt[subj]
 
-            #     filename = './datasets/epoched_data/8_channel_cVEP_epoched_S{}.pickle'.format(subj+1)
-            #     os.makedirs(os.path.dirname(filename), exist_ok=True)
-            #     with open(filename, 'wb') as handle:
-            #         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                filename = './datasets/epoched_data/8_channel_cVEP_epoched_S{}.pickle'.format(subj+1)
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+                with open(filename, 'wb') as handle:
+                    pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-            #     print("Epoched subject {}  for 8_channel_cVEP".format(subj+1))
+                print("Epoched subject {}  for 8_channel_cVEP ({})".format(subj+1, X_epoched.shape))
 
         else:
             if (mode=='within_subject'):
@@ -513,28 +517,29 @@ def load_preprocessed_data_cv(dataset, mode, model):
         low_cutoff = 2
         high_cutoff = 30
         sfreq = 240
+        X, rejected_chans = remove_bad_channels(X)
         X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
-
         if (model == 'eeg2code'):
-            # X, rejected_chans = remove_bad_channels(X)
+            X, rejected_chans = remove_bad_channels(X)
+            Ys = np.tile(Ys, (1,1,2))
             # X, Ys, Yt = augment_data_trial(X, Ys, Yt)
-            # n_subjects = 5
+            n_subjects = 5
             n_classes = 36
 
-            # data = {}
-            # for subj in range(0,n_subjects):
-            #     X_epoched= epoch_data(X[subj], Ys[subj], Yt[subj], n_subjects, n_classes)
+            data = {}
+            for subj in range(0,n_subjects):
+                X_epoched= epoch_data(X[subj], Ys[subj], Yt[subj], n_subjects, n_classes, dataset)
 
-            #     data ['X'] = X_epoched
-            #     data['Ys'] = Ys[subj]
-            #     data['Yt'] = Yt[subj]
+                data ['X'] = X_epoched
+                data['Ys'] = Ys[subj]
+                data['Yt'] = Yt[subj]
 
-            #     filename = './datasets/epoched_data/256_channel_cVEP_epoched_S{}.pickle'.format(subj+1)
-            #     os.makedirs(os.path.dirname(filename), exist_ok=True)
-            #     with open(filename, 'wb') as handle:
-            #         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                filename = './datasets/epoched_data/256_channel_cVEP_epoched_S{}.pickle'.format(subj+1)
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+                with open(filename, 'wb') as handle:
+                    pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-            #     print("Epoched subject {}  for 256_channel_cVEP".format(subj+1))
+                print("Epoched subject {}  for 256_channel_cVEP ({})".format(subj+1,X_epoched.shape))
         
         else:
 
@@ -889,10 +894,10 @@ def load_data(mode,dataset,model,i,fold):
 #     pickle.dump(data_256ch, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-datasets = ['256_channel_cVEP'] #'8_channel_cVEP', '256_channel_cVEP'
-modes = ['within_subject','loso_subject'] #'within_subject'
-model = 'cca'
+# datasets = ['256_channel_cVEP'] #'8_channel_cVEP', '256_channel_cVEP'
+# modes = ['loso_subject'] #'within_subject'
+# model = 'eeg2code'
 
-for dataset in datasets:
-    for mode in modes:
-        preprocessed_data = load_preprocessed_data_cv(dataset, mode, model)
+# for dataset in datasets:
+#     for mode in modes:
+#         preprocessed_data = load_preprocessed_data_cv(dataset, mode, model)

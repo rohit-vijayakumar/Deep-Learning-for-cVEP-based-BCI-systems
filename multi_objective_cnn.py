@@ -36,7 +36,7 @@ def build_multi_objective_cnn_model(n_channels,n_classes):
     x = Reshape((504,n_channels,1))(inputs)
     x = Masking(mask_value=0.)(x)
 
-    x = Conv2D(filters=16, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
+    x = Conv2D(filters=8, kernel_size=(1,n_channels), strides=(1,1), padding='valid')(x)
     x = BatchNormalization()(x)
     x = Dropout(0.25)(x)
     
@@ -313,8 +313,9 @@ def run_multi_objective_cnn(dataset,mode,model):
             n_classes = 36
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
+            X, rejected_chans = remove_bad_channels(X)
 
-            X_new_c = np.reshape(X,(5,108*2,504,256))
+            X = np.reshape(X,(5,108*2,504,256))
 
             Ys = np.repeat(Ys,2,axis=1)
             Yt = np.repeat(Yt,2,axis=1)
@@ -331,7 +332,7 @@ def run_multi_objective_cnn(dataset,mode,model):
 
             X_new = X[i]
             ys_new = Ys[i]
-            yt_new = Yt[i].flatten()
+            yt_new = Yt[i]
 
             y_new= np.concatenate((yt_new[..., np.newaxis],ys_new), axis=1)
 
@@ -346,7 +347,8 @@ def run_multi_objective_cnn(dataset,mode,model):
             yt_train = y_train[:,0]
             yt_val = y_val[:,0]
 
-            X_train, ys_train, yt_train = augment_data(X_train, ys_train, yt_train)
+            if(dataset == '256_channel_cVEP'):
+                X_train, ys_train, yt_train = augment_data(X_train, ys_train, yt_train)
 
             yt_train = to_categorical(yt_train)
             yt_val = to_categorical(yt_val)
@@ -399,6 +401,7 @@ def run_multi_objective_cnn(dataset,mode,model):
             n_subjects = 30
             n_classes = 21
             n_folds = 5
+            n_channels = 8
             mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
             codes = mat['codes'].astype('float32')
             codebook = np.moveaxis(codes,1,0).astype('float32')
@@ -407,8 +410,10 @@ def run_multi_objective_cnn(dataset,mode,model):
             n_subjects = 5
             n_classes = 36
             n_folds = 3
+            n_channels = 256
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
+
 
         for i in range(0,n_subjects):
             results[i+1] = {}
@@ -447,6 +452,15 @@ def run_multi_objective_cnn(dataset,mode,model):
                         model_multi_objective_cnn, model_history = train_multi_objective_cnn(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
                         results[i+1]['history'] = model_history
 
+                model_multi_objective_cnn = build_multi_objective_cnn_model(n_channels,n_classes)
+
+                if(mode=='loso_subject'):
+                    filename = './saved_models/{}/{}/{}/S{}/'.format(model,dataset,mode,i+1)
+                else:
+                    current_f = '_f'+ str(fold+1)    
+                    filename = './saved_models/{}/{}/{}/S{}{}/'.format(model,dataset,mode,i+1,current_f)
+
+                model_multi_objective_cnn.load_weights(filename).expect_partial()
                 results_eval = evaluate_multi_objective_cnn(model_multi_objective_cnn, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
                 print("Subject {} fold {} category_accuracy: {}".format(i+1,fold+1,results_eval['category_accuracy']))
@@ -468,6 +482,7 @@ def run_multi_objective_cnn(dataset,mode,model):
                     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
                     results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
 
+
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open('./results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode), 'wb') as handle:
@@ -476,8 +491,8 @@ def run_multi_objective_cnn(dataset,mode,model):
     else:
         warnings.warn("Unsupported mode")
 
-# datasets = ['256_channel_cVEP','8_channel_cVEP']
-# modes = ['within_subject','loso_subject','cross_subject']
+# datasets = ['8_channel_cVEP'] #256_channel_cVEP
+# modes = ['loso_subject'] #'within_subject','cross_subject',
 # #datasets = ['8_channel_cVEP','256_channel_cVEP']
 # #modes = ['cross_subject']
 # model = "multi_objective_cnn"
@@ -486,14 +501,3 @@ def run_multi_objective_cnn(dataset,mode,model):
 #     for mode in modes: 
 #         print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
 #         run_multi_objective_cnn(dataset, mode, model)
-
-datasets = ['8_channel_cVEP','256_channel_cVEP']
-modes = ['within_subject','loso_subject','cross_subject']
-#datasets = ['8_channel_cVEP','256_channel_cVEP']
-#modes = ['cross_subject']
-model = "multi_objective_cnn"
-
-for mode in modes:
-    for dataset in datasets: 
-        print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
-        run_multi_objective_cnn(dataset, mode, model)

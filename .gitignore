@@ -2,7 +2,6 @@
 datasets/
 results/
 saved_models/
-visualizations/
 other/
 
 # Byte-compiled / optimized / DLL files

@@ -1,0 +1,23 @@
+\begin{table}
+	\begin{center}
+		\begin{tabular}{|l|l|l|l|l|l|l|}
+			\hline
+			 & category accuracy & sequence accuracy & precision & recall & f1-score & ITR \\
+			\hline
+			S01 & 0.81±0.01 & 0.69±0.01 & 0.83±0.03 & 0.81±0.0 & 0.8±0.01 & 99.89±2.69 \\
+			\hline
+			S02 & 0.13±0.05 & 0.55±0.02 & 0.11±0.06 & 0.12±0.0 & 0.11±0.05 & 3.12±4.41 \\
+			\hline
+			S03 & 0.03±0.02 & 0.5±0.0 & 0.02±0.01 & 0.03±0.0 & 0.03±0.01 & 0.0±0.0 \\
+			\hline
+			S04 & 0.9±0.06 & 0.74±0.03 & 0.92±0.06 & 0.9±0.0 & 0.89±0.06 & 119.98±13.6 \\
+			\hline
+			S05 & 0.06±0.02 & 0.52±0.01 & 0.04±0.02 & 0.06±0.0 & 0.05±0.02 & 0.0±0.0 \\
+			\hline
+			S06 & 0.39±0.02 & 0.6±0.01 & 0.38±0.02 & 0.39±0.0 & 0.37±0.02 & 44.6±2.81 \\
+			\hline
+		\end{tabular}
+	\end{center}
+	\caption{Within-subject results of dual-objective CNN on 256-channel dataset}
+	\label{dual_objective_cnn_within_subject_256_channel_cVEP}
+\end{table}

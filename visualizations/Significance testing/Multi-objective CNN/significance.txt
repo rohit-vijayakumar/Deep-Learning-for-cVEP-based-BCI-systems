@@ -1,0 +1,2 @@
+cnn_ws_ls8:{'t-statistic': 13.028, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.9169735488295556, 'mean2': 0.7661799035469692}
+cnn_ws_ls256:{'t-statistic': -8.2, 'p': 0.001, 'significance': 1, 'performance': 0, 'mean1': 0.3851851821566621, 'mean2': 0.5749999980131785}

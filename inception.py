@@ -126,13 +126,15 @@ def train_inception(dataset,mode,model, X_train, ys_train,yt_train,X_val, ys_val
         warnings.warn("Unsupported dataset")
 
     model_inception = build_inception_model(n_channels,n_classes)
-    callback = EarlyStopping(monitor='val_loss', patience=10)
+    callback = EarlyStopping(monitor='val_loss', patience=100)
         
     if(current_fold!=None):
-        current_f = '_f'+ str(current_fold+1)
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(dataset,mode,model,current_subj+1,current_f)
+        current_f = '_f'+ str(current_fold+1)        
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}{}/'.format(model,dataset,mode,current_subj+1,current_f)
+        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)   
     else:
-        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(dataset,mode,model,current_subj+1)
+        checkpoint_filepath = './saved_models/{}/{}/{}/S{}/'.format(model,dataset,mode,current_subj+1)
+        os.makedirs(os.path.dirname(checkpoint_filepath), exist_ok=True)   
         
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
@@ -141,7 +143,7 @@ def train_inception(dataset,mode,model, X_train, ys_train,yt_train,X_val, ys_val
     mode='max',
     save_best_only=True)
 
-    history = model_inception.fit(x = X_train, y = {"category": yt_train}, batch_size = 128, 
+    history = model_inception.fit(x = X_train, y = {"category": yt_train}, batch_size = 32, 
                   epochs = 100, verbose=0, validation_data=(X_val, {"category": yt_val}), 
                             callbacks=[callback, model_checkpoint_callback])
 
@@ -187,36 +189,36 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
     results['tpr'] = tpr
     results['auc'] = roc_auc
 
-    # if(mode!='cross_subject'):
+    if(mode!='cross_subject'):
 
-    #     pred_c = model_inception.predict(X_test)
-    #     pred_c = np.argmax(pred_c, axis=1)
-    #     cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c)
+        pred_c = model_inception.predict(X_test)
+        pred_c = np.argmax(pred_c, axis=1)
+        cm_c = confusion_matrix(np.argmax(yt_test,axis=1), pred_c)
 
-    #     results['category_cm'] = np.array(cm_c)
+        results['category_cm'] = np.array(cm_c)
 
-    #     acc_time_step =[]
-    #     acc_time_step_r =[]
-    #     itr_time_step = []
-    #     pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-    #     pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
-    #     for k in range(0, X_test.shape[1]):
-    #         X_test_new = X_test.copy()
-    #         X_test_new[:,k:,:] = 0
-    #         pred = model_inception.predict(X_test_new)
-    #         prediction = np.argmax(pred,axis=1)
-    #         acc = 100*(np.sum(prediction == np.argmax(yt_test,axis=1))/len(prediction))
-    #         acc_time_step.append(acc)
+        acc_time_step =[]
+        acc_time_step_r =[]
+        itr_time_step = []
+        pred_time_step = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+        pred_time_step_r = np.zeros((X_test.shape[0],X_test.shape[1],n_classes))
+        for k in range(0, X_test.shape[1]):
+            X_test_new = X_test.copy()
+            X_test_new[:,k:,:] = 0
+            pred = model_inception.predict(X_test_new)
+            prediction = np.argmax(pred,axis=1)
+            acc = 100*(np.sum(prediction == np.argmax(yt_test,axis=1))/len(prediction))
+            acc_time_step.append(acc)
             
-    #         accuracy = acc/100
-    #         num_trials = X_test_new.shape[0]
-    #         time_min = (X_test_new.shape[0]* k*(2.1/504)*(1/60))
-    #         itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
-    #         itr_time_step.append(itr)
+            accuracy = acc/100
+            num_trials = X_test_new.shape[0]
+            time_min = (X_test_new.shape[0]* k*(2.1/504)*(1/60))
+            itr = calculate_ITR(n_classes, accuracy, time_min, num_trials)
+            itr_time_step.append(itr)
             
-    #         results['pred_time_step'] = {}
+            results['pred_time_step'] = {}
             
-    #         pred_time_step[:,k] = pred
+            pred_time_step[:,k] = pred
             
     #     # for k in range(0, X_test.shape[1]):
     #     #     X_test_new = X_test.copy()
@@ -234,12 +236,12 @@ def evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test,yt_tes
     #     #     pred_time_step_r[:,k] = pred
                   
 
-    #     results['variable_time_steps'] = np.array(acc_time_step)
-    #     #results['variable_time_steps_r'] = np.array(acc_time_step_r)
-    #     results['ITR_time_steps'] = np.array(itr_time_step)
+        results['variable_time_steps'] = np.array(acc_time_step)
+        #results['variable_time_steps_r'] = np.array(acc_time_step_r)
+        results['ITR_time_steps'] = np.array(itr_time_step)
 
-    #     results['pred_time_step'] = pred_time_step
-    #     #results['pred_time_step_r'] = pred_time_step_r
+        results['pred_time_step'] = pred_time_step
+        #results['pred_time_step_r'] = pred_time_step_r
 
     return results
 
@@ -254,14 +256,7 @@ def run_inception(dataset,mode,model):
 
         X = data['X']
         Ys = data['Ys']
-        Yt = data['Yt'] 
-
-        # Preprocessing data
-        low_cutoff = 2
-        high_cutoff = 30
-        sfreq = 240
-        X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
-
+        Yt = data['Yt']
 
         if(dataset=='8_channel_cVEP'):
             n_subjects = 30
@@ -270,15 +265,38 @@ def run_inception(dataset,mode,model):
             codes = mat['codes'].astype('float32')
             codebook = np.moveaxis(codes,1,0).astype('float32')
 
+            X_new_c = np.reshape(X[:,:100],(30,100*15,504,8))
+            Ys_new_c = Ys[:,:100]
+            Yt_new_c = Yt[:,:100]
+
+            Ys_new_c = np.repeat(Ys_new_c,15,axis=1)
+            Yt_new_c = np.repeat(Yt_new_c,15,axis=1)
+
+            X_new_nc = np.reshape(X[:,100:,:504,:],(30,75,504,8))
+            Ys_new_nc = Ys[:,100:]
+            Yt_new_nc = Yt[:,100:]
+
+            X = np.concatenate((X_new_c, X_new_nc),axis=1)
+            Ys = np.concatenate((Ys_new_c, Ys_new_nc),axis=1)
+            Yt = np.concatenate((Yt_new_c, Yt_new_nc),axis=1)
+
         if(dataset=='256_channel_cVEP'):
             n_subjects = 5
             n_classes = 36
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
-
             X, rejected_chans = remove_bad_channels(X)
-            X, Ys, Yt = augment_data_trial(X, Ys, Yt)
 
+            X = np.reshape(X,(5,108*2,504,256))
+
+            Ys = np.repeat(Ys,2,axis=1)
+            Yt = np.repeat(Yt,2,axis=1)
+
+        # Preprocessing data
+        low_cutoff = 2
+        high_cutoff = 30
+        sfreq = 240
+        X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
 
         for i in range(0,n_subjects):
             results[i+1] = {}
@@ -299,6 +317,9 @@ def run_inception(dataset,mode,model):
 
             yt_train = y_train[:,0]
             yt_val = y_val[:,0]
+
+            if(dataset == '256_channel_cVEP'):
+                X_train, ys_train, yt_train = augment_data(X_train, ys_train, yt_train)
 
             yt_train = to_categorical(yt_train)
             yt_val = to_categorical(yt_val)
@@ -321,9 +342,9 @@ def run_inception(dataset,mode,model):
                     yt_test = yt_val
 
                 if (dataset == '256_channel_cVEP'):
-                    X_test = X_test[:216]
-                    ys_test = ys_test[:216]
-                    yt_test = yt_test[:216]
+                    X_test = X_test
+                    ys_test = ys_test
+                    yt_test = yt_test
 
                 results_eval = evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
@@ -358,6 +379,8 @@ def run_inception(dataset,mode,model):
         if(dataset=='8_channel_cVEP'):
             n_subjects = 30
             n_classes = 21
+            n_folds = 5
+            n_channels = 8
             mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
             codes = mat['codes'].astype('float32')
             codebook = np.moveaxis(codes,1,0).astype('float32')
@@ -365,12 +388,14 @@ def run_inception(dataset,mode,model):
         if(dataset=='256_channel_cVEP'):
             n_subjects = 5
             n_classes = 36
+            n_folds = 3
+            n_channels = 256
             codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
             codes = np.moveaxis(codebook,1,0)
 
         for i in range(0,n_subjects):
             results[i+1] = {}
-            for fold in range(0,15):
+            for fold in range(0,n_folds):
                 results[i+1][fold+1] = {}
                 
                 data = load_data(mode,dataset,model,i,fold)
@@ -386,15 +411,15 @@ def run_inception(dataset,mode,model):
                 yt_val = data['yt_val']
                 yt_test = data['yt_test']
 
-                if (dataset == '256_channel_cVEP'):
-                    X_test = X_test[:216]
-                    ys_test = ys_test[:216]
-                    yt_test = yt_test[:216]
+                # if (dataset == '256_channel_cVEP'):
+                #     X_test = X_test
+                #     ys_test = ys_test[:216]
+                #     yt_test = yt_test[:216]
 
-                if (len(yt_train.shape)!=2):
-                    yt_train = to_categorical(yt_train)
-                    yt_val = to_categorical(yt_val)
-                    yt_test = to_categorical(yt_test)
+                # if (len(yt_train.shape)!=2):
+                #     yt_train = to_categorical(yt_train)
+                #     yt_val = to_categorical(yt_val)
+                #     yt_test = to_categorical(yt_test)
 
                 if(mode == 'within_subject'):
                     model_inception, model_history = train_inception(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, fold)
@@ -404,6 +429,16 @@ def run_inception(dataset,mode,model):
                     if(fold==0):
                         model_inception, model_history = train_inception(dataset,mode,model, X_train, ys_train, yt_train, X_val, ys_val, yt_val, n_subjects, n_classes, i, None)
                         results[i+1]['history'] = model_history
+
+                model_inception = build_inception_model(n_channels,n_classes)
+
+                if(mode=='loso_subject'):
+                    filename = './saved_models/{}/{}/{}/S{}/'.format(model,dataset,mode,i+1)
+                else:
+                    current_f = '_f'+ str(fold+1)    
+                    filename = './saved_models/{}/{}/{}/S{}{}/'.format(model,dataset,mode,i+1,current_f)
+
+                model_inception.load_weights(filename).expect_partial()
 
                 results_eval = evaluate_inception(model_inception, dataset,mode,model,X_test,ys_test, yt_test, n_subjects,n_classes,codebook)
 
@@ -419,13 +454,12 @@ def run_inception(dataset,mode,model):
                 results[i+1][fold+1]['tpr'] = results_eval['tpr']
                 results[i+1][fold+1]['auc'] = results_eval['auc']
                 # #results[i+1][fold+1]['sequence_accuracy'] = results_eval['sequence_accuracy']
-                # if(mode!='cross_subject'):
-                #     results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
-                #     #results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
-                #     results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
-                #     results[i+1][fold+1]['ITR'] = results_eval['ITR']
-                #     results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
-                #     #results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
+                if(mode!='cross_subject'):
+                    results[i+1][fold+1]['variable_time_steps'] = results_eval['variable_time_steps']
+                    #results[i+1][fold+1]['variable_time_steps_r'] = results_eval['variable_time_steps_r']
+                    results[i+1][fold+1]['ITR_time_steps'] = results_eval['ITR_time_steps']
+                    results[i+1][fold+1]['pred_time_step'] = results_eval['pred_time_step']
+                    #results[i+1][fold+1]['pred_time_step_r'] = results_eval['pred_time_step_r']
 
         filename = './results/{}/{}/{}/{}_{}.pickle'.format(model,dataset,mode,model,mode)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -435,13 +469,11 @@ def run_inception(dataset,mode,model):
     else:
         warnings.warn("Unsupported mode")
 
-datasets = ['8_channel_cVEP','256_channel_cVEP']
-modes = ['within_subject','cross_subject','loso_subject']
-# datasets = ['8_channel_cVEP','256_channel_cVEP']
-# modes = ['within_subject','loso_subject','cross_subject']
-model = "inception"
+# # datasets = ['8_channel_cVEP','256_channel_cVEP']
+# # modes = ['within_subject','loso_subject','cross_subject']
+# model = "inception"
 
-for dataset in datasets:
-    for mode in modes: 
-        print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
-        run_inception(dataset, mode, model)
+# for dataset in datasets:
+#     for mode in modes: 
+#         print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
+#         run_inception(dataset, mode, model)

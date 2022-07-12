@@ -268,31 +268,46 @@ def run_cca(dataset,mode,model):
         Ys = data['Ys']
         Yt = data['Yt'] 
 
+        if(dataset=='8_channel_cVEP'):
+            n_subjects = 30
+            n_classes = 20
+            mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
+            codes = mat['codes'].astype('float32')
+            codebook = np.moveaxis(codes,1,0).astype('float32')
+
+            X = np.reshape(X[:,:100],(30,100*15,504,8))
+            Ys = Ys[:,:100]
+            Yt = Yt[:,:100]
+
+            Ys = np.repeat(Ys,15,axis=1)
+            Yt = np.repeat(Yt,15,axis=1)
+
+        if(dataset=='256_channel_cVEP'):
+            n_subjects = 5
+            n_classes = 36
+            codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
+            codes = np.moveaxis(codebook,1,0)
+
+            X, rejected_chans = remove_bad_channels(X)
+
+            X = np.reshape(X,(5,108*2,504,256))
+
+            Ys = np.repeat(Ys,2,axis=1)
+            Yt = np.repeat(Yt,2,axis=1)
+
+
         # Preprocessing data
         low_cutoff = 2
         high_cutoff = 30
         sfreq = 240
         X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
-        if(dataset=='8_channel_cVEP'):
-            n_subjects = 30
-            n_classes = 20
-            if (model=='cca'):
-                X = X[:,:1500,:,:]
-                Ys = Ys[:,:1500]
-                Yt = Yt[:,:1500]
-
-        if(dataset=='256_channel_cVEP'):
-            n_subjects = 5
-            n_classes = 36
-            #X, accepted_chans = remove_bad_channels(X)
-            #X, Ys, Yt = augment_data_trial(X, Ys, Yt)
-
+        
         for i in range(0,n_subjects):
             results[i+1] = {}
 
             X_new = X[i]
             ys_new = Ys[i]
-            yt_new = Yt[i].flatten()
+            yt_new = Yt[i]
 
             y_new= np.concatenate((yt_new[..., np.newaxis],ys_new), axis=1)
 
@@ -306,6 +321,9 @@ def run_cca(dataset,mode,model):
 
             yt_train = y_train[:,0]
             yt_val = y_val[:,0]
+
+            if(dataset == '256_channel_cVEP'):
+                X_train, ys_train, yt_train = augment_data(X_train, ys_train, yt_train)
 
             T, weights = train_cca(dataset,mode,model, X_train, yt_train,n_subjects, n_classes)
 
@@ -327,9 +345,9 @@ def run_cca(dataset,mode,model):
                     yt_test = yt_val
 
                 if (dataset == '256_channel_cVEP'):
-                    X_test = X_test[:216]
-                    ys_test = ys_test[:216]
-                    yt_test = yt_test[:216]
+                    X_test = X_test
+                    ys_test = ys_test
+                    yt_test = yt_test
 
                 results_eval = evaluate_cca(dataset,mode,model,X_test,yt_test,T,n_subjects,n_classes, weights)
                 print("Train on subject {} test on subject {} category_accuracy: {}".format(i+1,j+1,results_eval['category_accuracy']))
@@ -363,14 +381,16 @@ def run_cca(dataset,mode,model):
         if(dataset=='8_channel_cVEP'):
             n_subjects = 30
             n_classes = 20
+            n_folds = 5
 
         if(dataset=='256_channel_cVEP'):
             n_subjects = 5
             n_classes = 36
+            n_folds = 3
 
         for i in range(0,n_subjects):
             results[i+1] = {}
-            for fold in range(0,15):
+            for fold in range(0,n_folds):
                 results[i+1][fold+1] = {}
                 
                 data = load_data(mode,dataset,model,i,fold)
@@ -387,9 +407,9 @@ def run_cca(dataset,mode,model):
                 yt_test = data['yt_test']
 
                 if (dataset == '256_channel_cVEP'):
-                    X_test = X_test[:216]
-                    ys_test = ys_test[:216]
-                    yt_test = yt_test[:216]
+                    X_test = X_test
+                    ys_test = ys_test
+                    yt_test = yt_test
 
                 if (len(yt_train.shape)==2):
                     yt_train = np.argmax(yt_train,axis=1)
@@ -449,12 +469,3 @@ def run_cca(dataset,mode,model):
 #     for mode in modes: 
 #         print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
 #         run_cca(dataset, mode, model)
-
-datasets = ['256_channel_cVEP','8_channel_cVEP']
-modes = ['loso_subject','within_subject','cross_subject']
-model = "cca"
-
-for dataset in datasets:
-    for mode in modes: 
-        print('\n------Running {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))
-        run_cca(dataset, mode, model)

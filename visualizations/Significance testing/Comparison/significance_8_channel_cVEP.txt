@@ -1,0 +1,6 @@
+cnn_cca_ws:{'t-statistic': 8.248, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.9169735488295556, 'mean2': 0.8466444444444445}
+cnn_eeg2code_ws:{'t-statistic': 10.871, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.9169735488295556, 'mean2': 0.8142888888888888}
+cnn_inception_ws:{'t-statistic': 9.844, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.9169735488295556, 'mean2': 0.8455238170425098}
+cnn_cca_ls:{'t-statistic': 6.84, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.7661799035469692, 'mean2': 0.6042222222222222}
+cnn_eeg2code_ls:{'t-statistic': 25.64, 'p': 0.0, 'significance': 1, 'performance': 1, 'mean1': 0.7661799035469692, 'mean2': 0.32957777777777786}
+cnn_inception_ls:{'t-statistic': 0.925, 'p': 0.382, 'significance': 0, 'performance': 1, 'mean1': 0.7661799035469692, 'mean2': 0.7500105905532837}

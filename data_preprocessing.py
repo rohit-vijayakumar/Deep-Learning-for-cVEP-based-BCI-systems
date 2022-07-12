@@ -102,13 +102,13 @@ def remove_bad_channels(X):
     for subj in range(0,X.shape[0]):
         avg_trials = np.average(X[subj],axis=0)
         std = np.std(avg_trials,axis=0)
-        for i in range(0,X.shape[2]):
+        for i in range(0,X.shape[3]):
             if(std[i]>3):
                 X[:,:,i] = 0
                 rejected_chans.append(i)
 
     accepted_chans = np.array([])
-    for i in range(0,X.shape[2]):
+    for i in range(0,X.shape[3]):
         if i not in rejected_chans:
             accepted_chans = np.append(accepted_chans,i)
 

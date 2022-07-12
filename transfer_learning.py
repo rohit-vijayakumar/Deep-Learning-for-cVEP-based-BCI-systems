@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 import mne
 import scipy.io
+import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -35,37 +36,54 @@ def run_transfer_learning(dataset,mode,model):
     with open('./datasets/{}.pickle'.format(dataset), 'rb') as handle:
         data = pickle.load(handle)
 
-        X = data['X']
-        Ys = data['Ys']
-        Yt = data['Yt']
-
-    # Preprocessing data
-    low_cutoff = 2
-    high_cutoff = 30
-    sfreq = 240
-    X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
+    X = data['X']
+    Ys = data['Ys']
+    Yt = data['Yt']
 
     if(dataset=='8_channel_cVEP'):
         dataset_txt = '8-channel dataset'
         n_subjects = 30
         n_classes = 21
         n_channels = 8
-        bbox_l = 1.01
         mat = scipy.io.loadmat('./datasets/8_channel_cVEP/resources/mgold_61_6521_flip_balanced_20.mat')
         codes = mat['codes'].astype('float32')
         codebook = np.moveaxis(codes,1,0).astype('float32')
+
+        X_new_c = np.reshape(X[:,:100],(30,100*15,504,8))
+        Ys_new_c = Ys[:,:100]
+        Yt_new_c = Yt[:,:100]
+
+        Ys_new_c = np.repeat(Ys_new_c,15,axis=1)
+        Yt_new_c = np.repeat(Yt_new_c,15,axis=1)
+
+        X_new_nc = np.reshape(X[:,100:,:504,:],(30,75,504,8))
+        Ys_new_nc = Ys[:,100:]
+        Yt_new_nc = Yt[:,100:]
+
+        X = np.concatenate((X_new_c, X_new_nc),axis=1)
+        Ys = np.concatenate((Ys_new_c, Ys_new_nc),axis=1)
+        Yt = np.concatenate((Yt_new_c, Yt_new_nc),axis=1)
 
     if(dataset=='256_channel_cVEP'):
         dataset_txt = '256-channel dataset'
         n_subjects = 5
         n_classes = 36
         n_channels = 256
-        bbox_l = 1.07
         codebook = np.load('./datasets/256_channel_cVEP/Scripts/codebook_36t.npy')[:n_classes]
         codes = np.moveaxis(codebook,1,0)
-
         X, rejected_chans = remove_bad_channels(X)
-        X, Ys, Yt = augment_data_chan(X, Ys, Yt)
+
+        X = np.reshape(X,(5,108*2,504,256))
+
+        Ys = np.repeat(Ys,2,axis=1)
+        Yt = np.repeat(Yt,2,axis=1)
+
+
+    # Preprocessing data
+    low_cutoff = 2
+    high_cutoff = 30
+    sfreq = 240
+    X = bandpass_filter_data(X, low_cutoff, high_cutoff, sfreq)
 
     results = {}
     for i in range(0,n_subjects):
@@ -75,49 +93,21 @@ def run_transfer_learning(dataset,mode,model):
         ys_new = Ys[i]
         yt_new = Yt[i]
         
-        if dataset =='8_channel_cVEP':
-            yt_new = yt_new[..., np.newaxis]
-            
-        y_new= np.concatenate((yt_new,ys_new), axis=1)
+        y_new= np.concatenate((yt_new[..., np.newaxis],ys_new), axis=1)
 
         X_train, X_test, y_train, y_test = train_test_split(X_new, y_new, test_size=0.2,stratify=y_new[:,0], shuffle= True)
-        
-        if dataset =='8_channel_cVEP':
-            ys_train = y_train[:,1:]
-            ys_test = y_test[:,1:]
-
-            yt_train = y_train[:,0]
-            yt_test = y_test[:,0]
-            
-        if(dataset=='256_channel_cVEP'):
-            
-            X_train1 = X_train[:,:,:256]
-            X_train2 = X_train[:,:,256:512]
-
-            X_test1 = X_test[:,:,:256]
-            X_test2 = X_test[:,:,256:512]
-
-            X_train = np.concatenate((X_train1,X_train2), axis=0)
-            X_test = np.concatenate((X_test1,X_test2), axis=0)[:216]
-
-            yt_train1 = y_train[:,0]
-            yt_train2 = y_train[:,1]
-            ys_train1 = y_train[:,2:128]
-            ys_train2 = y_train[:,128:254]
-
-            yt_test1 = y_test[:,0]
-            yt_test2 = y_test[:,1]
-            ys_test1 = y_test[:,2:128]
-            ys_test2 = y_test[:,128:254]
-
-            
-            ys_train = np.concatenate((ys_train1,ys_train2), axis=0)
-            yt_train = np.concatenate((yt_train1,yt_train2), axis=0)
-            ys_test = np.concatenate((ys_test1,ys_test2), axis=0)[:216]
-            yt_test = np.concatenate((yt_test1,yt_test2), axis=0)[:216]
 
         X_train = standardize_data(X_train)
         X_test = standardize_data(X_test)
+
+        ys_train = y_train[:,1:]
+        ys_test = y_test[:,1:]
+
+        yt_train = y_train[:,0]
+        yt_test = y_test[:,0]
+
+        if(dataset == '256_channel_cVEP'):
+            X_train, ys_train, yt_train = augment_data(X_train, ys_train, yt_train)
 
         yt_train = to_categorical(yt_train)
         yt_test = to_categorical(yt_test)
@@ -156,25 +146,26 @@ def run_transfer_learning(dataset,mode,model):
 
             results[i+1].append(category_accuracy)
 
-        plt.rcParams["figure.figsize"] = (10,5)
-        acc_samples = results[i+1]
-        samples = np.arange(0,len(acc_samples))
-        plt.plot(samples,acc_samples)
-        plt.xticks(np.arange(0,n_trials+1,10))
-        plt.yticks(np.arange(0,1.09,0.1))
-        plt.ylim((0,1.09))
-        plt.xlabel('Number of trials')
-        plt.ylabel('Accuracy')
-        plt.title("Transfer learning for subject {} in {}".format(i+1,dataset_txt))
-        plt.grid(False)
-        plt.grid(True)
+#         plt.rcParams["figure.figsize"] = (20,10)
+#         plt.rcParams.update({'font.size': 16})
+#         acc_samples = results[i+1]
+#         samples = np.arange(0,len(acc_samples))
+#         plt.plot(samples,acc_samples)
+#         plt.xticks(np.arange(0,n_trials+1,10))
+#         plt.yticks(np.arange(0,1.09,0.1))
+#         plt.ylim((0,1.09))
+#         plt.xlabel('Number of trials',fontsize=16)
+#         plt.ylabel('Accuracy',fontsize=16)
+#         plt.title("Transfer learning for subject {} in {}".format(i+1,dataset_txt),fontsize=16)
+#         plt.grid(False)
+#         plt.grid(True)
         
-        filename = "./visualizations/Transfer learning/{}_S{}.png".format(dataset,i+1)
-        os.makedirs(os.path.dirname(filename), exist_ok=True)   
-        plt.savefig(filename) 
-        plt.close()
+#         filename = "./visualizations/Transfer learning/{}_S{}.png".format(dataset,i+1)
+#         os.makedirs(os.path.dirname(filename), exist_ok=True)   
+#         plt.savefig(filename) 
+#         plt.close()
         
-    filename = './results/Transfer learning/{}.pickle'.format(dataset)
+    filename = './results/Transfer learning/{}.pickle'.format(dataset_txt)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'wb') as handle:
         pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -184,6 +175,9 @@ def run_transfer_learning(dataset,mode,model):
     NUM_STYLES = len(LINE_STYLES)
 
     sns.reset_orig() 
+    plt.rcParams["figure.figsize"] = (20,10)
+    plt.rcParams.update({'font.size': 16})
+        
     clrs = sns.color_palette('husl', n_colors=NUM_COLORS) 
     fig, ax = plt.subplots(figsize=(20,10))
     for l in results.keys():
@@ -196,17 +190,16 @@ def run_transfer_learning(dataset,mode,model):
     ax.set_xticks(np.arange(0,n_trials+1,10))
     ax.set_yticks(np.arange(0,1.09,0.1))
     ax.set_ylim((0,1.09))
-    ax.set_xlabel('Number of trials')
-    ax.set_ylabel('Accuracy')
-    ax.set_title("Transfer learning for {}".format(dataset_txt))
-
-    ax.legend(fontsize=13,bbox_to_anchor=(bbox_l, 1.01))
+    ax.set_xlabel('Number of trials',fontsize=16)
+    ax.set_ylabel('Accuracy',fontsize=16)
+    ax.set_title("Transfer learning for {}".format(dataset_txt),fontsize=16)
+    ax.legend(fontsize=14,bbox_to_anchor=(1.09, 1.01))
     plt.grid(False)
     plt.grid(True)
 
-    filename = "./visualizations/Transfer learning/{}_all.png".format(dataset)
+    filename = "./visualizations/Transfer learning/transfer_learning_{}.png".format(dataset)
     os.makedirs(os.path.dirname(filename), exist_ok=True)   
-    plt.savefig(filename) 
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0.5, transparent = True) 
     plt.close()
     
 datasets = ['8_channel_cVEP','256_channel_cVEP']
@@ -214,4 +207,5 @@ model = 'multi_objective_cnn'
 mode = 'loso_subject'
 
 for dataset in datasets:
+    print('\n------Transfer learning {} for dataset {} in mode {}-----\n'.format(model, dataset, mode))    
     run_transfer_learning(dataset,mode,model)
